@@ -1,0 +1,29 @@
+﻿# Ignore the local web configuration file that contains secret tokens.
+/web/config.js
+
+# Environment files (passwords, API keys)
+.env
+.env.local
+.env.*.local
+
+# Dependencies (huge, auto-generated)
+node_modules/
+
+# Database data (if using local volumes)
+postgres_data/
+pgdata/
+
+# Large data files (load directly into PostGIS instead)
+data/*.geojson
+data/*.csv
+data/*.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
