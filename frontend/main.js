@@ -82,7 +82,7 @@ map.on('load', async () => {
     /* Earthquake data load with clustering */
     try {
         console.log('🔄 Fetching earthquake data...');
-        const response = await fetch('http://localhost:3002/api/earthquakes?limit=50000');
+        const response = await fetch('/geojson/earthquakes.json');
         const data = await response.json();
 
         const geojson = {

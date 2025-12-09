@@ -232,11 +232,19 @@ async function loadEarthquakes(filters = {}) {
         });
 
         console.log('🔄 Loading earthquakes...');
-        const response = await fetch(`http://localhost:3002/api/earthquakes?${params}`);
+        const response = await fetch('/geojson/earthquakes.json');
         
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const data = await response.json();
+        // Filter client-side since using static file
+        const minD = filters.minDepth || 0;
+        const maxD = filters.maxDepth || 100;
+        const activeRegions = (filters.regions || 'W1,W2,W3,E1,E2,E3').split(',');
+        data.earthquakes = data.earthquakes
+            .filter(eq => eq.depth >= minD && eq.depth <= maxD && activeRegions.includes(eq.region))
+            .slice(0, filters.limit || 10000);
+        data.count = data.earthquakes.length;
         console.log(`📊 Loaded ${data.count} earthquakes`);
 
         currentEarthquakes = data.earthquakes;
