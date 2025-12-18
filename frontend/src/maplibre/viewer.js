@@ -1,3 +1,4 @@
+import { getApiUrl } from '../config.js';
 import { MAPLIBRE_CONFIG, EQ_LAYER_ID } from './config.js';
 import { addEarthquakeLayer, addCascadiaBoundary } from './layers.js';
 
@@ -22,7 +23,7 @@ export function initMap(maplibregl) {
         // ---- Fetch earthquake data and build GeoJSON ----
         try {
             console.log('🔄 Fetching earthquake data...');
-            const response = await fetch('http://localhost:3002/api/earthquakes?limit=50000');
+            const response = await fetch(getApiUrl('/api/earthquakes?limit=50000'));
             const data = await response.json();
 
             const geojson = {
@@ -35,7 +36,7 @@ export function initMap(maplibregl) {
                     },
                     properties: {
                         depth: eq.depth,
-                        depth_km: eq.depth,         // convenience alias
+                        depth_km: eq.depth,
                         mag: eq.magnitude,
                         id: eq.evid,
                         region: eq.region,
@@ -72,7 +73,7 @@ export function initMap(maplibregl) {
                 );
             });
 
-            // Individual point click → update “Selected Event” + popup
+            // Individual point click → update "Selected Event" + popup
             map.on('click', EQ_LAYER_ID, (e) => {
                 const feature = e.features[0];
                 const props = feature.properties;

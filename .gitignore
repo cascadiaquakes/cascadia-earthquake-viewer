@@ -1,29 +1,56 @@
-# Root node / build output
+# --------------------
+# Node / build output
+# --------------------
 node_modules/
 dist/
 
-# Environment (Cesium token, etc.)
+# --------------------
+# Environment / secrets
+# --------------------
 .env
-frontend/.env
-backend/.env
+.env.*
+frontend/.env*
+backend/.env*
+.env.production
 
+# --------------------
 # OS junk
+# --------------------
 .DS_Store
 Thumbs.db
 
+# --------------------
 # Logs
+# --------------------
 *.log
 
+# --------------------
 # Frontend
+# --------------------
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+# --------------------
 # Backend
+# --------------------
 backend/node_modules/
 backend/dist/
 backend/pgdata/
+backend/migrations/
+backend/scripts/
 
-# DB dumps – NEVER commit these
-backend/gis_backup.dump
+# --------------------
+# DB dumps – NEVER commit
+# --------------------
 backend/*.dump
+backend/*.sql
+backend/*.backup
+
+# --------------------
+# Data / analysis (local only)
+# --------------------
+data_analysis/
+dataset_analysis.ipynb
+*.xlsx
+*.xls

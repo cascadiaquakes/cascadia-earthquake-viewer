@@ -1,8 +1,21 @@
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { initFilters } from './src/filters.js';
+import { initAnalytics, updateAnalytics } from './src/analytics.js';
+import { getApiUrl } from './src/config.js';
 
-/* Map initialization */
+/* Show/hide loading indicator */
+export function showLoading() {
+    document.getElementById('loading-overlay').classList.add('active');
+}
+
+export function hideLoading() {
+    document.getElementById('loading-overlay').classList.remove('active');
+}
+
+/* -------------------------------------------------------
+   Map Initialization
+------------------------------------------------------- */
 const map = new maplibregl.Map({
     container: 'map',
     style: {
@@ -31,26 +44,139 @@ const map = new maplibregl.Map({
     attributionControl: true
 });
 
-/* Map controls */
+
+/* Expose map instance for cross-module UI coordination (analytics panel, scroll locking) */
+window.map = map;
+
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 map.addControl(
     new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }),
     'bottom-left'
 );
 
-/* Zoom level display */
+
+/* -------------------------------------------------------
+   Utility Functions
+------------------------------------------------------- */
 function updateZoomDisplay() {
-    const zoomBox = document.getElementById('zoom-level-display');
-    if (zoomBox) {
-        zoomBox.textContent = `Zoom: ${map.getZoom().toFixed(2)}`;
+    const el = document.getElementById('zoom-level-display');
+    if (el) el.textContent = `Zoom: ${map.getZoom().toFixed(2)}`;
+}
+
+async function loadCatalogs() {
+    try {
+        const response = await fetch(getApiUrl('/api/catalogs'));
+        const data = await response.json();
+        return data.catalogs;
+    } catch {
+        return [];
     }
 }
 
+/* Store catalog metadata globally */
+let catalogsData = [];
+
+/* Update catalog metadata display */
+function updateCatalogMetadata(catalogId) {
+    const catalog = catalogsData.find(c => c.catalog_id === parseInt(catalogId));
+    if (!catalog) return;
+    
+    document.getElementById('catalog-doi').href = catalog.doi && catalog.doi !== 'none' 
+        ? `https://doi.org/${catalog.doi}` 
+        : '#';
+    document.getElementById('catalog-doi').textContent = catalog.doi && catalog.doi !== 'none' 
+        ? 'View Paper' 
+        : 'No DOI';
+    document.getElementById('catalog-region').textContent = catalog.region || '—';
+    document.getElementById('catalog-timespan').textContent = catalog.time_span || '—';
+    document.getElementById('catalog-count').textContent = catalog.num_events 
+        ? catalog.num_events.toLocaleString() 
+        : '—';
+    document.getElementById('catalog-detection').textContent = catalog.detection_method || '—';
+    document.getElementById('catalog-association').textContent = catalog.association_method || '—';
+    document.getElementById('catalog-location').textContent = catalog.location_method || '—';
+    document.getElementById('catalog-velocity').textContent = catalog.velocity_model || '—';
+}
+
+export async function loadEarthquakes(catalogId = 1, limit = 50000) {
+    showLoading();
+    try {
+        const response = await fetch(
+            getApiUrl(`/api/earthquakes?catalog=${catalogId}&limit=${limit}`)
+        );
+        const data = await response.json();
+
+        return {
+            type: 'FeatureCollection',
+            features: data.earthquakes.map(eq => ({
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: [eq.longitude, eq.latitude]
+                },
+                properties: {
+                    depth: eq.depth,
+                    mag: eq.magnitude,
+                    mag_type: eq.magnitude_type,
+                    id: eq.evid,
+                    nsta: eq.nsta,
+                    gap: eq.gap,
+                    horizontal_error: eq.horizontal_error_km,
+                    vertical_error: eq.vertical_error_km,
+                    origin_time: eq.origin_time,
+                    region: eq.region || 'N/A',
+                    time: new Date(eq.origin_time).toLocaleString()
+                }
+            }))
+        };
+    } catch {
+        return null;
+    } finally {
+        hideLoading();
+    }
+}
+
+window.loadEarthquakes = loadEarthquakes;
+
+/* -------------------------------------------------------
+   Catalog Switching API
+------------------------------------------------------- */
+window.switchCatalog = async function (catalogId) {
+    showLoading();
+    const updated = await loadEarthquakes(Number(catalogId), 50000);
+    if (updated && map.getSource('earthquakes')) {
+        map.getSource('earthquakes').setData(updated);
+        
+        // Update analytics with new catalog data
+        if (window.updateAnalytics) {
+            window.updateAnalytics(updated.features);
+        }
+    }
+    hideLoading();
+};
+
+/* Attach dropdown listener */
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('catalog-select');
+    if (select) {
+        select.addEventListener('change', e => {
+            const catalogId = e.target.value;
+            window.switchCatalog(catalogId);
+            updateCatalogMetadata(catalogId);
+        });
+    }
+});
+
+
+/* -------------------------------------------------------
+   Map Load Handler
+------------------------------------------------------- */
 map.on('load', async () => {
+    // Initialize zoom display
     updateZoomDisplay();
     map.on('move', updateZoomDisplay);
 
-    /* Cascadia study region boundary */
+    // Add Cascadia study region boundary
     map.addSource('cascadia-boundary', {
         type: 'geojson',
         data: {
@@ -58,11 +184,11 @@ map.on('load', async () => {
             geometry: {
                 type: 'Polygon',
                 coordinates: [[
-                    [-130.0, 39.0],
-                    [-116.0, 39.0],
-                    [-116.0, 52.0],
-                    [-130.0, 52.0],
-                    [-130.0, 39.0]
+                    [-130, 39],
+                    [-116, 39],
+                    [-116, 52],
+                    [-130, 52],
+                    [-130, 39]
                 ]]
             }
         }
@@ -78,214 +204,166 @@ map.on('load', async () => {
             'line-opacity': 0.8
         }
     });
+    
+    // Load catalog metadata and initial earthquake data
+    catalogsData = await loadCatalogs();
+    updateCatalogMetadata(1);
+    const initial = await loadEarthquakes(1, 50000);
+    if (!initial) return;
 
-    /* Earthquake data load with clustering */
-    try {
-        console.log('🔄 Fetching earthquake data...');
-        const response = await fetch('/geojson/earthquakes.json');
-        const data = await response.json();
+    // Add earthquake data source with clustering
+    map.addSource('earthquakes', {
+        type: 'geojson',
+        data: initial,
+        cluster: true,
+        clusterMaxZoom: 5,   // Clusters dissolve at zoom 6+
+        clusterRadius: 30    // Tighter clustering radius
+    });
 
-        const geojson = {
-            type: 'FeatureCollection',
-            features: data.earthquakes.map(eq => ({
-                type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [eq.longitude, eq.latitude]
-                },
-                properties: {
-                    depth: eq.depth,
-                    mag: eq.magnitude,
-                    id: eq.evid,
-                    region: eq.region,
-                    time: new Date(eq.origin_time).toLocaleString(),
-                    nsta: eq.nsta,
-                    gap: eq.gap,
-                    max_err: eq.max_err,
-                    origin_time: eq.origin_time
-                }
-            }))
-        };
+    // Add cluster circle layer
+    map.addLayer({
+        id: 'eq-clusters',
+        type: 'circle',
+        source: 'earthquakes',
+        filter: ['has', 'point_count'],
+        paint: {
+            'circle-color': [
+                'step',
+                ['get', 'point_count'],
+                '#51bbd6',
+                100, '#3b9fc4',
+                750, '#2a7db3'
+            ],
+            'circle-radius': [
+                'step',
+                ['get', 'point_count'],
+                20,
+                100, 30,
+                750, 40
+            ],
+            'circle-opacity': 0.85,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff'
+        }
+    });
 
-        /* Add source with clustering enabled */
-        map.addSource('earthquakes', {
-            type: 'geojson',
-            data: geojson,
-            cluster: true,
-            clusterMaxZoom: 14,
-            clusterRadius: 50
+    // Add cluster count labels
+    map.addLayer({
+        id: 'eq-cluster-count',
+        type: 'symbol',
+        source: 'earthquakes',
+        filter: ['has', 'point_count'],
+        layout: {
+            'text-field': '{point_count_abbreviated}',
+            'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+            'text-size': 12
+        },
+        paint: { 'text-color': '#ffffff' }
+    });
+
+    // Add individual earthquake points (color by depth)
+    map.addLayer({
+        id: 'eq-points',
+        type: 'circle',
+        source: 'earthquakes',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+            'circle-color': [
+                'step',
+                ['get', 'depth'],
+                '#fbbf24', 20,   // Yellow: 0-20km
+                '#f97316', 40,   // Orange: 20-40km
+                '#dc2626'        // Red: 40+ km
+            ],
+            'circle-radius': [
+                'interpolate',
+                ['linear'],
+                ['zoom'],
+                4, 2.5,
+                10, 6
+            ],
+            'circle-opacity': 0.7
+        }
+    });
+
+    // Click cluster to zoom in
+    map.on('click', 'eq-clusters', e => {
+        const f = map.queryRenderedFeatures(e.point, { layers: ['eq-clusters'] });
+        const cid = f[0].properties.cluster_id;
+
+        map.getSource('earthquakes').getClusterExpansionZoom(cid, (err, zoom) => {
+            if (err) return;
+            map.easeTo({ center: f[0].geometry.coordinates, zoom });
         });
+    });
 
-        /* Cluster circles - LOCI style */
-        map.addLayer({
-            id: 'eq-clusters',
-            type: 'circle',
-            source: 'earthquakes',
-            filter: ['has', 'point_count'],
-            paint: {
-                'circle-color': [
-                    'step',
-                    ['get', 'point_count'],
-                    '#51bbd6',
-                    100,
-                    '#3b9fc4',
-                    750,
-                    '#2a7db3'
-                ],
-                'circle-radius': [
-                    'step',
-                    ['get', 'point_count'],
-                    20,
-                    100,
-                    30,
-                    750,
-                    40
-                ],
-                'circle-opacity': 0.85,
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#ffffff'
-            }
-        });
+    // Click individual point to show details
+    map.on('click', 'eq-points', e => {
+        const p = e.features[0].properties;
+        const content = document.getElementById('selected-content');
+        const empty = document.getElementById('selected-empty');
 
-        /* Cluster count labels */
-        map.addLayer({
-            id: 'eq-cluster-count',
-            type: 'symbol',
-            source: 'earthquakes',
-            filter: ['has', 'point_count'],
-            layout: {
-                'text-field': '{point_count_abbreviated}',
-                'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-                'text-size': 12
-            },
-            paint: {
-                'text-color': '#ffffff'
-            }
-        });
-
-        /* Individual earthquake points */
-        map.addLayer({
-            id: 'eq-points',
-            type: 'circle',
-            source: 'earthquakes',
-            filter: ['!', ['has', 'point_count']],
-            paint: {
-                'circle-color': [
-                    'step',
-                    ['get', 'depth'],
-                    '#fbbf24', 20,
-                    '#f97316', 40,
-                    '#dc2626'
-                ],
-                'circle-radius': [
-                    'interpolate',
-                    ['linear'],
-                    ['zoom'],
-                    4, 2.5,
-                    10, 6
-                ],
-                'circle-opacity': 0.7,
-                'circle-stroke-width': 0
-            }
-        });
-
-        /* Click cluster to zoom in */
-        map.on('click', 'eq-clusters', (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-                layers: ['eq-clusters']
-            });
-            const clusterId = features[0].properties.cluster_id;
-            
-            map.getSource('earthquakes').getClusterExpansionZoom(
-                clusterId,
-                (err, zoom) => {
-                    if (err) return;
-                    map.easeTo({
-                        center: features[0].geometry.coordinates,
-                        zoom: zoom
-                    });
-                }
-            );
-        });
-
-        /* Click individual point - update panel */
-        map.on('click', 'eq-points', e => {
-            const props = e.features[0].properties;
-
-            const content = document.getElementById('selected-content');
-            const empty = document.getElementById('selected-empty');
-
-            content.innerHTML = `
-                <div style="padding-bottom: 4px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:11px; font-weight:700; color:#0b4a53; background:#e0f2fe; padding:2px 6px; border-radius:4px;">
-                            REGION ${props.region}
-                        </span>
-                        <span style="font-size:10px; color:#999;">${props.id}</span>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                        <div style="background:#f8f9fa; padding:6px; border-radius:4px;">
-                            <div style="font-size:9px; color:#777; font-weight:600;">DEPTH</div>
-                            <div style="font-size:14px; font-weight:700; color:#333;">
-                                ${props.depth.toFixed(1)} <span style="font-size:10px;">km</span>
-                            </div>
-                        </div>
-                        <div style="background:#f8f9fa; padding:6px; border-radius:4px;">
-                            <div style="font-size:9px; color:#777; font-weight:600;">MAGNITUDE</div>
-                            <div style="font-size:14px; font-weight:700; color:#333;">
-                                ${props.mag ? props.mag.toFixed(1) : 'N/A'}
-                            </div>
-                        </div>
-                    </div>
-                    <div style="margin-top:8px; font-size:10px; color:#666;">
-                        ${props.time}
-                    </div>
+        const date = new Date(p.origin_time);
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        
+        content.innerHTML = `
+            <div class="event-list">
+                <div class="event-row">
+                    <span class="row-label">Date</span>
+                    <span class="row-value">${dateStr}</span>
                 </div>
-            `;
-            content.classList.remove('d-none');
-            empty.classList.add('d-none');
-        });
+                <div class="event-row">
+                    <span class="row-label">Time</span>
+                    <span class="row-value">${timeStr}</span>
+                </div>
+                <div class="event-row">
+                    <span class="row-label">Depth</span>
+                    <span class="row-value">${p.depth.toFixed(1)} km</span>
+                </div>
+                <div class="event-row">
+                    <span class="row-label">Magnitude</span>
+                    <span class="row-value">${p.mag ? parseFloat(p.mag).toFixed(1) : 'No magnitude'}</span>
+                </div>
+                <div class="event-row">
+                    <span class="row-label">Stations</span>
+                    <span class="row-value">${p.nsta ? p.nsta : 'No data'}</span>
+                </div>
+                <div class="event-id-final">${p.id}</div>
+            </div>
+        `;
 
-        /* Cursor styling */
-        map.on('mouseenter', 'eq-clusters', () => {
-            map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', 'eq-clusters', () => {
-            map.getCanvas().style.cursor = '';
-        });
-        map.on('mouseenter', 'eq-points', () => {
-            map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', 'eq-points', () => {
-            map.getCanvas().style.cursor = '';
-        });
+        content.classList.remove('d-none');
+        empty.classList.add('d-none');
+    });
 
-        console.log(`✅ Loaded ${data.count} earthquakes with clustering`);
+    // Change cursor on hover over clusters and points
+    ['eq-clusters', 'eq-points'].forEach(layer => {
+        map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+    });
 
-    } catch (error) {
-        console.error('❌ Error loading map data:', error);
-    }
-
+    // Initialize filters
     initFilters(map);
+    
+    // Initialize analytics panel
+    initAnalytics();
+    updateAnalytics(initial.features);
 });
 
-/* Export of filtered earthquakes */
+/* -------------------------------------------------------
+   Export Functions
+------------------------------------------------------- */
 window.downloadFilteredData = function (format) {
     const features = map.queryRenderedFeatures({ layers: ['eq-points'] });
-
-    if (features.length === 0) {
-        alert('No earthquakes visible in current view. Adjust filters or zoom out.');
+    if (!features.length) {
+        alert('No earthquakes visible.');
         return;
     }
-
-    if (format === 'geojson') {
-        downloadAsGeoJSON(features);
-    } else if (format === 'csv') {
-        downloadAsCSV(features);
-    }
+    if (format === 'geojson') downloadAsGeoJSON(features);
+    if (format === 'csv') downloadAsCSV(features);
 };
 
-/* GeoJSON export */
 function downloadAsGeoJSON(features) {
     const geojson = {
         type: 'FeatureCollection',
@@ -296,65 +374,42 @@ function downloadAsGeoJSON(features) {
         }))
     };
 
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], {
-        type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `cascadia-earthquakes-${new Date()
-        .toISOString()
-        .split('T')[0]}.geojson`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `cascadia-earthquakes-${new Date().toISOString().split('T')[0]}.geojson`;
     a.click();
-    URL.revokeObjectURL(url);
-
-    console.log(`✅ Downloaded ${features.length} earthquakes as GeoJSON`);
 }
 
-/* CSV export */
 function downloadAsCSV(features) {
     const headers = [
-        'evid',
-        'latitude',
-        'longitude',
-        'depth_km',
-        'magnitude',
-        'origin_time',
-        'region',
-        'nsta',
-        'gap',
-        'max_err'
+        'evid','latitude','longitude','depth_km','magnitude',
+        'origin_time','region','nsta','gap','max_err'
     ];
 
     let csv = headers.join(',') + '\n';
 
     features.forEach(f => {
         const p = f.properties;
-        const coords = f.geometry.coordinates;
-        const row = [
+        const [lon, lat] = f.geometry.coordinates;
+
+        csv += [
             p.id || '',
-            coords[1].toFixed(4),
-            coords[0].toFixed(4),
-            p.depth ? p.depth.toFixed(2) : '',
-            p.mag ? p.mag.toFixed(1) : '',
+            lat.toFixed(4),
+            lon.toFixed(4),
+            p.depth?.toFixed(2) || '',
+            p.mag ?? '',
             p.origin_time || '',
-            `"${p.region || ''}"`,
-            p.nsta || '',
-            p.gap ? p.gap.toFixed(1) : '',
-            p.max_err ? p.max_err.toFixed(2) : ''
-        ].join(',');
-        csv += row + '\n';
+            `"${p.region}"`,
+            p.nsta ?? '',
+            p.gap ?? '',
+            p.max_err ?? ''
+        ].join(',') + '\n';
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `cascadia-earthquakes-${new Date()
-        .toISOString()
-        .split('T')[0]}.csv`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `cascadia-earthquakes-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
-
-    console.log(`✅ Downloaded ${features.length} earthquakes as CSV`);
 }

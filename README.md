@@ -1,6 +1,40 @@
 # Cascadia Earthquake Catalog Viewer
 
-A web-based geospatial application for exploring and analyzing earthquake data from the Cascadia subduction zone. Features interactive 2D/3D visualization, intelligent clustering, advanced filtering, and data export capabilities for 279,000+ seismic events.
+Interactive web-based visualization tool for exploring multiple earthquake catalogs across the Cascadia region.
+
+## 🌍 Available Catalogs
+
+### 1. Brenton et al. — Cascadia ML Catalog (279,060 events)
+- **Technique**: Machine Learning
+- **Networks**: UW, CN, CC
+- **Region**: Cascadia Subduction Zone
+- **Coverage**: 2002-2020
+
+### 2. Littel et al. 2024 — Queen Charlotte (18,038 events)
+- **DOI**: [10.1029/2022TC007494](https://doi.org/10.1029/2022TC007494)
+- **Technique**: hypoDD relocation
+- **Networks**: GSC, CHIS
+- **Region**: Queen Charlotte Triple Junction
+
+### 3. Merrill et al. — Nootka Fault Zone (92,002 events)
+- **DOI**: [10.1029/2021GC010205](https://doi.org/10.1029/2021GC010205)
+- **Technique**: REST algorithm + tomoDD
+- **Networks**: CHIS
+- **Region**: Nootka Fault Zone
+
+### 4. Morton et al. 2023 — Cascadia Subduction (5,282 events)
+- **DOI**: [10.1029/2023JB026607](https://doi.org/10.1029/2023JB026607)
+- **Technique**: Subspace detection + Hypoinverse
+- **Networks**: Cascadia Initiative
+- **Region**: Cascadia Subduction Zone
+
+### 5. Shelly et al. 2025 — LFE Southern Cascadia (61,441 events)
+- **DOI**: [10.1029/2025GL116116](https://doi.org/10.1029/2025GL116116)
+- **Technique**: Template matching + cross-correlation
+- **Networks**: BK, NC
+- **Region**: Southern Cascadia (MTJ region)
+
+**Total Events**: 455,823 across all catalogs
 
 ---
 
@@ -21,7 +55,7 @@ A web-based geospatial application for exploring and analyzing earthquake data f
 - Draggable info boxes with detailed earthquake data
 - Cascadia study region boundary box with corner labels
 
-### 📊 Data Analysis
+### 📊 Data Analysis & Visualization
 
 **Depth-Based Color Coding**
 - 🟡 Yellow: Shallow (0-20 km)
@@ -29,18 +63,22 @@ A web-based geospatial application for exploring and analyzing earthquake data f
 - 🔴 Red: Deep (40+ km)
 
 **Advanced Filters**
-- Depth range slider (0-100 km)
-- Regional selection (W1, W2, W3, E1, E2, E3)
-- Data quality filters: Min stations, max error, azimuthal gap
-- Real-time map updates
+- **Depth range**: Slider control (0-100 km)
+- **Magnitude range**: Slider control (0-10)
+- **Date range**: Calendar picker with validation (prevents invalid ranges)
+- **Spatial bounds**: Lat/lon bounding box for geographic filtering
+- **API-powered**: All filters processed server-side for optimal performance
+
+**Interactive Features**
+- Clustering for large datasets (auto-decluster on zoom)
+- Click events to view detailed metadata
+- Real-time catalog switching (279K events loaded in seconds)
 
 **Data Export**
-- GeoJSON format (with 3D coordinates for 3D view)
-- CSV format (all earthquake attributes)
-- Exports currently visible/filtered earthquakes
-- Timestamped filenames
-
----
+- GeoJSON format (preserves all metadata and geometry)
+- CSV format (tabular data with all attributes)
+- Exports filtered earthquakes based on current filters
+- Timestamped filenames for version control
 
 ## Technology Stack
 

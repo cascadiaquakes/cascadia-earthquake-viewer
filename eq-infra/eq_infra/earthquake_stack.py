@@ -73,6 +73,7 @@ class EarthquakeStack(Stack):
         # CloudFront Distribution
         distribution = cloudfront.Distribution(
             self, "EqDistribution",
+            default_root_object="index.html",
             default_behavior=cloudfront.BehaviorOptions(
                 origin=origins.S3BucketOrigin.with_origin_access_control(
                     site_bucket,

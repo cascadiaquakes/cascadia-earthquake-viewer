@@ -35,23 +35,24 @@ html, body {
 /* Zoom level display */
 .zoom-level-box {
     position: absolute;
-    bottom: 40px;
-    left: 920px; /* move to the right of the sidebar */
+    bottom: 44px;
+    left: 920px;
     background: rgba(0, 0, 0, 0.6);
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 11px;
     font-family: monospace;
-    z-index: 50;
+    z-index: 1000;
     pointer-events: none;
 }
 
 /* Map scale control positioning */
 .maplibregl-ctrl-bottom-left {
+    position: fixed;
     bottom: 10px !important;
-    left: 920px !important; /* also to the right of the sidebar */
-    z-index: 50;
+    left: 920px !important;
+    z-index: 1000;
 }
 
 .maplibregl-ctrl-scale {
@@ -66,47 +67,63 @@ html, body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 60px;
+    height: 65px;
     background: #0b4a53;
-    display: flex;
-    justify-content: space-between;
+
+    /* Grid layout prevents overlap */
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
+
     padding: 0 24px;
     z-index: 100;
     color: white;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 
+/* -------- LEFT (LOGOS) -------- */
 .header-left {
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;
 }
 
 .header-left img {
-    height: 40px;
+    height: 44px;
     object-fit: contain;
 }
 
-.nsf-logo {
-    height: 62px !important;
+.header-left img.nsf-logo {
+    height: 58px;
     padding-left: 16px;
-    border-left: 1px solid rgba(255,255,255,0.2);
+    border-left: 1px solid rgba(255,255,255,0.25);
 }
 
+
+
+/* -------- CENTER (TITLE) -------- */
 .header-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    text-align: center;
     font-size: 18px;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
+
+    /* Prevent overlap */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    padding: 0 16px;
 }
 
+/* -------- RIGHT (ACTIONS) -------- */
 .header-right {
     display: flex;
     align-items: center;
     gap: 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .version-text {
@@ -115,7 +132,7 @@ html, body {
     font-weight: 500;
 }
 
-/* Header glass button */
+/* -------- HEADER BUTTON -------- */
 .btn-glass {
     background: rgba(200, 240, 255, 0.15);
     color: white;
@@ -128,60 +145,76 @@ html, body {
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    transition: background 0.2s;
+    transition: background 0.2s ease;
 }
 
 .btn-glass:hover {
     background: rgba(255, 255, 255, 0.25);
 }
 
+
 /* -------- SIDEBAR -------- */
 .sidebar-container {
     position: absolute;
     top: 80px;
     left: 20px;
-    bottom: 100px;
-    width: 220px !important;
-    z-index: 60;
+    width: 280px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    overflow-x: visible;
+    z-index: 10;
+    padding-bottom: 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     pointer-events: none;
 }
 
+.sidebar-container::-webkit-scrollbar {
+    width: 6px;
+}
 
+.sidebar-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.sidebar-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+
+
+/* Panel - More Compact */
 .glass-panel {
     pointer-events: auto;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     flex-shrink: 0;
 }
 
-#filters-panel { 
-    max-height: 55vh;
-    overflow-y: auto;
-}
-
+/* Panel Header */
 .panel-header {
-    padding: 12px 16px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    color: #334155;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: #1e293b;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-.panel-content {
-    padding: 13px;
-    overflow-y: auto;
-}
 
 /* -------- EXPORT PANEL -------- */
 .export-panel {
@@ -236,10 +269,21 @@ html, body {
 
 /* -------- DETAILS PANEL -------- */
 .details-panel {
-    margin-top: auto;
-    height: 150px;
-    max-height: 190px;
-    overflow-y: auto;
+    padding: 12px 14px;
+}
+
+.details-panel .panel-header {
+    font-size: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+}
+
+.empty-state {
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 20px 10px;
+    line-height: 1.4;
 }
 
 
@@ -251,57 +295,7 @@ html, body {
     line-height: 1.5;
 }
 
-/* -------- FILTER ELEMENTS -------- */
-.filter-section { 
-    margin-bottom: 12px;
-    padding: 0 16px;
-}
 
-.group-title {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #94a3b8;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-}
-
-.input-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #1e293b;
-}
-
-.chip-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 6px;
-}
-
-.chip-option {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px;
-    border-radius: 4px;
-    background: #f1f5f9;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 500;
-    color: #64748b;
-    border: 1px solid transparent;
-    transition: all 0.1s;
-}
-
-.chip-option:hover { background: #e2e8f0; }
-
-.chip-option.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-}
 
 /* Slider styling */
 .noUi-target {
@@ -365,16 +359,1044 @@ html, body {
     display: none; 
 }
 
-/* -------- LEGEND -------- */
-.footer-container {
-    position: absolute;
-    bottom: 25px;
+
+
+
+
+/* Filter header layout and text styling */
+.filter-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #334155;
+    user-select: none;
+    width: 100%;
+    justify-content: flex-start;
+}
+
+/* Badge stays right-aligned when present */
+.filter-header .filter-badge {
+    margin-left: auto;
+}
+
+/* Subtle hover feedback */
+.filter-header:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+/* Separator when a section is open */
+details[open] .filter-header {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* ---------------------------------------------
+   Arrow indicator
+----------------------------------------------*/
+.filter-header::before {
+    content: '▸';
+    font-size: 11px;
+    color: #94a3b8;
+    margin-right: 6px;
+    transition: transform 0.25s cubic-bezier(.25,.46,.45,.94);
+    display: inline-block;
+}
+
+details[open] .filter-header::before {
+    transform: rotate(90deg);
+}
+
+
+
+/* Match simple headers to slider headers (consistent panel style) */
+.filter-section.simple {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 4px 0;
+}
+
+
+
+
+
+/* Filter Action Buttons */
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-reset, .btn-apply {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-reset {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.btn-reset:hover {
+    background: #e2e8f0;
+}
+
+.btn-apply {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-apply:hover {
+    background: var(--primary-hover);
+}
+
+/* Slider Styling */
+.slider {
+    margin: 12px 0;
+}
+
+
+/* Clean Catalog Selector */
+.filter-group-clean {
+    margin-bottom: 16px;
+}
+
+.label-clean {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.select-clean {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e293b;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.select-clean:hover {
+    border-color: #cbd5e1;
+}
+
+.select-clean:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.1);
+}
+
+
+.filter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.filter-header:hover {
+    background: #f8fafc;
+}
+
+.filter-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.filter-badge-optional {
+    font-size: 10px;
+    font-weight: 500;
+    color: #94a3b8;
+    background: #f8fafc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+
+details[open] .filter-header {
+    border-bottom: 1px solid #f1f5f9;
+}
+
+
+
+/* Buttons - Apple Style */
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.btn-secondary, .btn-primary {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14, 116, 144, 0.25);
+}
+
+/* Slider Clean Style */
+.slider {
+    margin: 14px 0 8px 0;
+}
+
+.noUi-target {
+    background: #f1f5f9;
+    border: none;
+    box-shadow: none;
+    height: 6px;
+}
+
+.noUi-connect {
+    background: var(--primary);
+}
+
+.noUi-handle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    right: -9px;
+}
+
+.noUi-handle:before,
+.noUi-handle:after {
+    display: none;
+}
+
+/* Spatial Grid */
+.spatial-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.spatial-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.spatial-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.1);
+}
+
+/* Event Details */
+.event-list {
+    font-size: 12px;
+}
+
+.event-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.event-row:last-of-type {
+    border-bottom: none;
+}
+
+.row-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.row-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1e293b;
+    text-align: right;
+}
+
+.event-id-final {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    font-size: 9px;
+    color: #cbd5e1;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* Button Hover Effects - Consistent */
+.btn-secondary:hover,
+.btn-primary:hover,
+.btn-export:hover {
+    transform: translateY(-1px);
+}
+
+.btn-export {
+    transition: all 0.2s;
+}
+
+/* Catalog Label - Better Alignment */
+.label-clean {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    padding-left: 2px;
+}
+
+/* ---------------------------------------------
+   Panel layout and internal spacing
+----------------------------------------------*/
+/* Collapsible content area — unified */
+.filter-content {
+    padding: 0 14px 14px 14px !important;
+    overflow: visible;
+}
+
+
+details[open] {
+    margin-bottom: 12px;
+}
+
+/* Spatial grid */
+.spatial-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding-bottom: 4px;
+}
+
+/* Header spacing within panels */
+.panel-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Export help text */
+.export-hint {
+    margin-top: 6px;
+    font-size: 10px;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* Catalog selector label */
+.catalog-label {
+    padding-left: 8px;
+    display: inline-block;
+}
+
+/* Export panel spacing */
+.export-panel {
+    padding: 10px 12px;
+}
+
+.export-panel .panel-header {
+    font-size: 12px;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+}
+
+/* Export buttons */
+.export-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+/* Text input, date input, spatial inputs */
+.filter-group-clean select,
+.date-input {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+/* ---------------------------------------------
+   Flatpickr calendar styling
+----------------------------------------------*/
+.flatpickr-calendar {
+    font-family: 'Inter', sans-serif;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
+    transform: scale(0.70);
+    transform-origin: top left;
+}
+
+.flatpickr-months {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.flatpickr-current-month {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #0e748f !important;
+}
+
+.flatpickr-weekdays span {
+    font-size: 11px !important;
+    font-weight: 600;
+    color: #64748b !important;
+}
+
+.flatpickr-day {
+    font-size: 12px !important;
+    border-radius: 6px !important;
+}
+
+.flatpickr-day:hover {
+    background: rgba(14,116,144,0.12) !important;
+    color: #0e748f !important;
+}
+
+.flatpickr-day.selected {
+    background: #0e748f !important;
+    border-color: #0e748f !important;
+    color: #fff !important;
+}
+
+.flatpickr-day.today {
+    border-color: #0e748f !important;
+}
+
+/* ---------------------------------------------
+   Unified collapsible sections (arrows aligned)
+----------------------------------------------*/
+
+.filter-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    margin-bottom: 10px;
+    padding: 0;
+}
+
+/* Simple collapsible sections (no right badge) */
+.filter-section.simple {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0;
+}
+
+/* ---------------------------------------------
+   Unified filter headers + arrow alignment
+----------------------------------------------*/
+
+/* Section header */
+.filter-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+/* Arrow icon */
+.filter-header::before {
+    content: '▸';
+    font-size: 12px;
+    color: #94a3b8;
+    margin-right: 10px;
+    transform-origin: center;
+    transition: transform 0.25s cubic-bezier(.25,.46,.45,.94);
+    display: inline-block;
+}
+
+/* Rotate arrow when section is open */
+details[open] > .filter-header::before {
+    transform: rotate(90deg);
+}
+
+/* Badge alignment (Depth, Magnitude) */
+.filter-header .filter-badge {
+    margin-left: auto;
+}
+
+/* Simple sections (Date Range, Spatial Bounds) */
+.filter-section.simple {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0;
+}
+
+/* Normalize date/spatial inputs */
+.date-input,
+.spatial-input,
+.filter-group-clean select {
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+}
+
+/* -----------------------------------------------------------
+   Normalize Date Range & Spatial Bounds label sizes
+   (we keepp them compact and consistent with Depth/Mag UI)
+----------------------------------------------------------- */
+
+.filter-section.simple label,
+.filter-section.simple .input-label,
+.filter-section.simple .row-label {
+    font-size: 12px !important;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* Tighter spacing for label + input */
+.filter-section.simple .filter-content > div {
+    margin-bottom: 8px;
+}
+
+/* -----------------------------------------------------------
+/* Fix Selected Event header size */
+.details-panel .panel-header {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 10px !important;
+}
+
+/* Compress Selected Event body */
+.details-panel {
+    padding: 10px 14px !important;
+}
+
+.event-list,
+.event-row {
+    font-size: 11px !important;
+}
+
+.row-label {
+    font-size: 10px !important;
+}
+
+.row-value {
+    font-size: 11px !important;
+}
+
+
+
+
+/* tighten up pulldown menu 
+Container (the closed select box) */
+
+.select-clean {
+    width: 100%;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #d7dce1;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: #ffffff;
+    color: #1e293b;
+    appearance: none;
+    -webkit-appearance: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Truncate long catalog names */
+.select-clean option {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+/* Dropdown menu alignment */
+.select-clean:focus {
+    border-color: #0e748f;
+    box-shadow: 0 0 0 3px rgba(14,116,144,0.12);
+}
+
+/* Dropdown list panel */
+select::-ms-expand {
+    display: none;
+}
+
+/* Fix for Chrome / Edge dropdown positioning */
+select {
+    direction: ltr;
+}
+
+/* Hover on dropdown items */
+select option:hover {
+    background-color: #f5f5f7 !important; /* Apple hover color */
+}
+
+/* --------------------------------------------------------------
+   Catalog Dropdown — Forced Truncation + Smooth Open Polish
+--------------------------------------------------------------*/
+
+/* Closed select appearance */
+.select-clean {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e293b;
+    background: #ffffff;
+    border: 1px solid #ccd3d9;
+    border-radius: 10px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 10px 6px;
+
+    /* Force truncation ALWAYS */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    transition: border-color 0.15s ease, box-shadow 0.2s ease;
+}
+
+/* Focus ring */
+.select-clean:focus {
+    border-color: #0e748f;
+    box-shadow: 0 0 0 3px rgba(14,116,144,0.15);
+    outline: none;
+}
+
+/* Smooth-open illusion: option styling */
+.select-clean option {
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    /* subtle fade when list appears */
+    opacity: 0.85;
+    transition: opacity 0.15s ease-in-out, background 0.15s ease-in-out;
+}
+
+.select-clean:focus option {
+    opacity: 1;
+}
+
+/* Hover on dropdown items */
+.select-clean option:hover {
+    background: #f1f5f9 !important;
+}
+
+/* Remove old browser chevron */
+select::-ms-expand {
+    display: none;
+}
+
+/* Prevent Chrome alignment bugs */
+select {
+    direction: ltr;
+}
+
+/* Force selected option to truncate inside the closed select */
+.select-clean {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.select-clean option {
+    max-width: 100%;
+}
+
+/* Constrain dropdown width to match the select box */
+.select-clean:focus {
+    width: 100%;
+}
+
+select {
+    max-width: 100%;
+}
+
+.select-clean option {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+/* Catalog Info Section */
+.catalog-info-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-top: 12px;
+    margin-bottom: 16px;
+    background: white;
+    overflow: hidden;
+}
+
+.catalog-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    user-select: none;
+    transition: background 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.catalog-info-header:hover {
+    background: #f8fafc;
+}
+
+.catalog-info-header::before {
+    content: '▶';
+    font-size: 9px;
+    margin-right: 8px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+details[open].catalog-info-section .catalog-info-header::before {
+    transform: rotate(90deg);
+}
+
+.catalog-info-content {
+    padding: 0 12px 12px 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.info-value {
+    font-size: 11px;
+    color: #1e293b;
+    font-weight: 500;
+    text-align: right;
+    max-width: 60%;
+    word-break: break-word;
+}
+
+.info-link {
+    font-size: 11px;
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.info-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+/* alignment for Catalog Information header */
+.catalog-info-header {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e2e8f0;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+/* Show All Events Button */
+.btn-show-all {
+    width: 100%;
+    padding: 11px;
+    border: 2px solid var(--primary);
+    background: white;
+    color: var(--primary);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+}
+
+.btn-show-all:hover {
+    background: var(--primary);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.filter-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.filter-actions-row {
+    display: flex;
+    gap: 8px;
+}
+
+
+
+/* ===================== ANALYTICS PANEL ===================== */
+
+.analytics-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+}
+
+.analytics-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.analytics-panel {
+    position: fixed;
+    top: 0;
+    right: -460px;
+    width: 460px;
+    height: 100vh;
+    background: white;
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.3);
+    transition: right 0.35s ease;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.analytics-panel.open {
+    right: 0;
+}
+
+.analytics-header {
+    height: 60px;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.analytics-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.btn-close-analytics {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+}
+
+.analytics-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 40px;
+}
+
+.chart-container {
+    margin-bottom: 30px;
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.chart-title {
+    margin: 0 0 15px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #1e293b;
+}
+
+/* ===================== SHOW ANALYTICS BUTTON ===================== */
+
+.btn-show-analytics {
+    position: fixed;
+    bottom: 40px;
+    right: 24px;
+    background: #0e7490;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 950;
+    transition: all 0.3s ease;
+}
+
+.btn-show-analytics:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+.btn-show-analytics.hidden {
+    display: none;
+}
+
+/* ===================== LEGEND ===================== */
+
+.footer-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     pointer-events: none;
-    z-index: 50;
+    z-index: 900;
 }
 
 .legend-panel {
@@ -388,31 +1410,26 @@ html, body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-.legend-title { 
-    font-size: 11px; 
-    font-weight: 700; 
-    color: #64748b; 
-    padding-right: 10px; 
-    border-right: 1px solid #eee; 
-    text-transform: uppercase; 
+.legend-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    padding-right: 10px;
+    border-right: 1px solid #eee;
+    text-transform: uppercase;
 }
 
-.legend-item { 
-    font-size: 11px; 
-    display: flex; 
-    align-items: center; 
-    gap: 6px; 
-    font-weight: 600; 
-    color: #334155; 
+.legend-item {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #334155;
 }
 
-.dot { 
-    width: 8px; 
-    height: 8px; 
-    border-radius: 50%; 
-}
-
-/* Utility classes */
-.d-none { 
-    display: none !important; 
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
 }

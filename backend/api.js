@@ -9,7 +9,7 @@ const port = 3002;
 const pool = new Pool({
     user: 'postgres',
     password: 'postgres',
-    host: 'localhost',
+    host: 'postgis-eq',
     port: 5432,
     database: 'gis'
 });
@@ -21,68 +21,131 @@ app.use((req, res, next) => {
     next();
 });
 
+// Get list of available catalogs
+app.get('/api/catalogs', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                catalog_id, 
+                catalog_name, 
+                doi, 
+                technique, 
+                network_codes, 
+                region, 
+                num_events,
+                time_span,
+                detection_method,
+                association_method,
+                location_method,
+                velocity_model,
+                additional_notes
+            FROM earthquake.catalogs
+            WHERE status = 'active'
+            ORDER BY catalog_id
+        `);
+        res.json({ catalogs: result.rows });
+    } catch (error) {
+        console.error('Error fetching catalogs:', error);
+        res.status(500).json({ error: 'Failed to fetch catalogs' });
+    }
+});
+
 // Get earthquakes with filters
 app.get('/api/earthquakes', async (req, res) => {
     try {
-        const { 
-            limit = 10000, 
-            minDepth = 0, 
-            maxDepth = 100, 
-            regions = 'W1,W2,W3,E1,E2,E3',
-            minStations = 0,
-            maxError = 1000,
-            maxGap = 360
+        const {
+            catalog = 1,
+            limit = 10000,
+            minDepth = 0,
+            maxDepth = 100,
+            minMagnitude,
+            maxMagnitude,
+            startDate,
+            endDate,
+            minLat,
+            maxLat,
+            minLon,
+            maxLon
         } = req.query;
 
-        const regionArray = regions.split(',');
+        // Build dynamic WHERE clause
+        let whereConditions = [
+            'catalog_id = $1',
+            'depth >= $2',
+            'depth <= $3'
+        ];
+        let values = [catalog, minDepth, maxDepth];
+        let paramCounter = 4;
+
+        // Add magnitude filter if provided (only if not default range)
+        if (minMagnitude && parseFloat(minMagnitude) > 0) {
+            whereConditions.push(`magnitude >= $${paramCounter}`);
+            values.push(minMagnitude);
+            paramCounter++;
+        }
+        if (maxMagnitude && parseFloat(maxMagnitude) < 10) {
+            whereConditions.push(`magnitude <= $${paramCounter}`);
+            values.push(maxMagnitude);
+            paramCounter++;
+        }
+
+        // Add date range filter
+        if (startDate) {
+            whereConditions.push(`origin_time >= $${paramCounter}`);
+            values.push(startDate);
+            paramCounter++;
+        }
+        if (endDate) {
+            whereConditions.push(`origin_time <= $${paramCounter}`);
+            values.push(endDate);
+            paramCounter++;
+        }
+
+        // Add spatial bounding box filter using PostGIS geometry
+        if (minLat) {
+            whereConditions.push(`ST_Y(geom) >= $${paramCounter}`);
+            values.push(minLat);
+            paramCounter++;
+        }
+        if (maxLat) {
+            whereConditions.push(`ST_Y(geom) <= $${paramCounter}`);
+            values.push(maxLat);
+            paramCounter++;
+        }
+        if (minLon) {
+            whereConditions.push(`ST_X(geom) >= $${paramCounter}`);
+            values.push(minLon);
+            paramCounter++;
+        }
+        if (maxLon) {
+            whereConditions.push(`ST_X(geom) <= $${paramCounter}`);
+            values.push(maxLon);
+            paramCounter++;
+        }
+
+        const whereClause = whereConditions.join(' AND ');
+        values.push(limit);
 
         const query = `
-            (
-                SELECT evid, ST_X(geom) as longitude, ST_Y(geom) as latitude,
-                    depth, origin_time, region, nsta, gap, max_err
-                FROM earthquake.events
-                WHERE catalog_id = 1
-                AND depth >= $1 AND depth < 20
-                AND region = ANY($3::text[])
-                AND nsta >= $4 AND max_err <= $5 AND gap <= $6
-                ORDER BY origin_time DESC
-                LIMIT CAST($7 AS INTEGER) / 3
-            )
-            UNION ALL
-            (
-                SELECT evid, ST_X(geom) as longitude, ST_Y(geom) as latitude,
-                    depth, origin_time, region, nsta, gap, max_err
-                FROM earthquake.events
-                WHERE catalog_id = 1
-                AND depth >= 20 AND depth < 40
-                AND region = ANY($3::text[])
-                AND nsta >= $4 AND max_err <= $5 AND gap <= $6
-                ORDER BY origin_time DESC
-                LIMIT CAST($7 AS INTEGER) / 3
-            )
-            UNION ALL
-            (
-                SELECT evid, ST_X(geom) as longitude, ST_Y(geom) as latitude,
-                    depth, origin_time, region, nsta, gap, max_err
-                FROM earthquake.events
-                WHERE catalog_id = 1
-                AND depth >= 40 AND depth <= $2
-                AND region = ANY($3::text[])
-                AND nsta >= $4 AND max_err <= $5 AND gap <= $6
-                ORDER BY origin_time DESC
-                LIMIT CAST($7 AS INTEGER) / 3
-            )
+            SELECT 
+                evid, 
+                ST_X(geom) as longitude, 
+                ST_Y(geom) as latitude,
+                depth, 
+                origin_time, 
+                magnitude,
+                magnitude_type,
+                nsta, 
+                gap, 
+                horizontal_error_km,
+                vertical_error_km,
+                rms,
+                region
+            FROM earthquake.events
+            WHERE ${whereClause}
+            ORDER BY origin_time DESC
+            LIMIT $${paramCounter}
         `;
-
-        const values = [
-            minDepth, 
-            maxDepth, 
-            regionArray,
-            minStations,
-            maxError,
-            maxGap,
-            limit
-        ];
 
         const result = await pool.query(query, values);
 

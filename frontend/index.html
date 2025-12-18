@@ -10,12 +10,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css" rel="stylesheet"/>
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
     <link rel="stylesheet" href="/src/style.css">
     <link rel="icon" type="image/png" href="/src/resources/favicon.ico" />
 </head>
-<body>
 
+<body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading earthquakes...</div>
+        </div>
+    </div>
+    
     <header class="app-header">
         <div class="header-left">
             <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT">
@@ -27,9 +37,7 @@
         </div>
         
         <div class="header-right">
-            <a href="/viewer3d.html" class="btn-glass">
-                3D View →
-            </a>
+            <a href="/viewer3d.html" class="btn-glass">3D View →</a>
             <span class="version-text">v1 • demo</span>
         </div>
     </header>
@@ -40,26 +48,149 @@
     </div>
 
     <div class="sidebar-container">
-        <!-- Filters panel with dynamic content -->
-        <div class="glass-panel" id="filters-panel"></div>
+        <div class="glass-panel" id="filters-panel">
+            <div class="panel-header">Catalog & Filters</div>
+            
+            <div class="filter-group-clean">
+                <label class="label-clean catalog-label">Catalog</label>
+                <select id="catalog-select" class="select-clean">
+                    <option value="1">Brenton et al. — Cascadia ML (279K)</option>
+                    <option value="2">Littel et al. — Queen Charlotte (18K)</option>
+                    <option value="3">Merrill et al. — Nootka Fault (108K)</option>
+                    <option value="5">Morton et al. — Cascadia Subduction (5K)</option>
+                    <option value="6">Shelly et al. — LFE (61K)</option>
+                    <option value="7">Bostock et al. — LFE (269K)</option>
+                    <option value="8">Hirao et al. — Mt St Helens (31K)</option>
+                    <option value="9">Stone et al. — Offshore (268)</option>
+                </select>
+            </div>
+            
+            <details class="catalog-info-section">
+                <summary class="catalog-info-header">
+                    Catalog Information
+                </summary>
+                <div class="catalog-info-content" id="catalog-metadata">
+                    <div class="info-row">
+                        <span class="info-label">Publication</span>
+                        <a href="#" id="catalog-doi" class="info-link" target="_blank">View Paper</a>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Region</span>
+                        <span class="info-value" id="catalog-region">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Time Span</span>
+                        <span class="info-value" id="catalog-timespan">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Events</span>
+                        <span class="info-value" id="catalog-count">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Detection Method</span>
+                        <span class="info-value" id="catalog-detection">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Association Method</span>
+                        <span class="info-value" id="catalog-association">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Location Method</span>
+                        <span class="info-value" id="catalog-location">—</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Velocity Model</span>
+                        <span class="info-value" id="catalog-velocity">—</span>
+                    </div>
+                </div>
+            </details>
 
-        <!-- Data export section -->
+            <details class="filter-section" open>
+                <summary class="filter-header">
+                    Depth Range
+                    <span class="filter-badge">
+                        <span id="depth-min-val">0</span>–<span id="depth-max-val">100</span> km
+                    </span>
+                </summary>
+                <div class="filter-content">
+                    <div id="depth-slider" class="slider"></div>
+                </div>
+            </details>
+
+            <details class="filter-section" open>
+                <summary class="filter-header">
+                    Magnitude
+                    <span class="filter-badge">
+                        <span id="mag-min-val">0.0</span>–<span id="mag-max-val">10.0</span>
+                    </span>
+                </summary>
+                <div class="filter-content">
+                    <div id="magnitude-slider" class="slider"></div>
+                </div>
+            </details>
+
+            <details class="filter-section simple">
+                <summary class="filter-header">Date Range</summary>
+                <div class="filter-content">
+                    <div class="date-grid">
+                        <div>
+                            <label class="input-label" for="start-date">Start Date</label>
+                            <input type="text" id="start-date" class="date-input" placeholder="mm/dd/yyyy">
+                        </div>
+                        <div>
+                            <label class="input-label" for="end-date">End Date</label>
+                            <input type="text" id="end-date" class="date-input" placeholder="mm/dd/yyyy">
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="filter-section simple">
+                <summary class="filter-header">Spatial Bounds</summary>
+                <div class="filter-content">
+                    <div class="spatial-grid">
+                        <div>
+                            <label class="input-label" for="min-lat">Min Latitude</label>
+                            <input type="number" id="min-lat" name="min-lat" class="spatial-input" step="0.1" placeholder="e.g., 39">
+                        </div>
+                        <div>
+                            <label class="input-label" for="max-lat">Max Latitude</label>
+                            <input type="number" id="max-lat" name="max-lat" class="spatial-input" step="0.1" placeholder="e.g., 52">
+                        </div>
+                        <div>
+                            <label class="input-label" for="min-lon">Min Longitude</label>
+                            <input type="number" id="min-lon" name="min-lon" class="spatial-input" step="0.1" placeholder="e.g., -130">
+                        </div>
+                        <div>
+                            <label class="input-label" for="max-lon">Max Longitude</label>
+                            <input type="number" id="max-lon" name="max-lon" class="spatial-input" step="0.1" placeholder="e.g., -116">
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <div class="filter-actions">
+                <button id="show-all" class="btn-show-all">Show All Events</button>
+                <div class="filter-actions-row">
+                    <button id="reset-filters" class="btn-secondary">Reset Filters</button>
+                    <button id="apply-filters" class="btn-primary">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+
         <div class="glass-panel export-panel">
             <div class="panel-header">Export Data</div>
             <div class="export-buttons">
                 <button onclick="downloadFilteredData('geojson')" class="btn-export">
-                    <span class="export-icon">📥</span>
-                    GeoJSON
+                    <span class="export-icon">📥</span> GeoJSON
                 </button>
                 <button onclick="downloadFilteredData('csv')" class="btn-export">
-                    <span class="export-icon">📊</span>
-                    CSV
+                    <span class="export-icon">📊</span> CSV
                 </button>
             </div>
-            <div class="export-hint">Downloads currently visible earthquakes</div>
+            <div class="export-hint">Downloads filtered earthquakes in current map view</div>
         </div>
 
-        <!-- Selected event details panel -->
         <div class="glass-panel details-panel">
             <div class="panel-header">Selected Event</div>
             <div id="selected-empty" class="empty-state">
@@ -72,14 +203,49 @@
     <div class="footer-container">
         <div class="panel legend-panel">
             <div class="legend-title">Depth</div>
-            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0-20</div>
-            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20-40</div>
+            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0–20</div>
+            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20–40</div>
             <div class="legend-item"><div class="dot" style="background: #dc2626;"></div> 40+ km</div>
         </div>
     </div>
 
+    <!-- Analytics Panel -->
+    <div class="analytics-panel" id="analytics-panel">
+        <div class="analytics-header">
+            <h3>Analytics</h3>
+            <button class="btn-close-analytics" id="close-analytics">✕</button>
+        </div>
+        
+        <div class="analytics-content">
+            <div class="chart-container">
+                <h4 class="chart-title">Event Rate Over Time</h4>
+                <canvas id="chart-timeline"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h4 class="chart-title">Magnitude Distribution</h4>
+                <canvas id="chart-magnitude"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h4 class="chart-title">Depth Distribution</h4>
+                <canvas id="chart-depth"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h4 class="chart-title">Depth Over Time</h4>
+                <canvas id="chart-depth-time"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Toggle Button -->
+    <button class="btn-show-analytics" id="show-analytics">
+        📊 Show Analytics
+    </button>
+
+    <div class="analytics-overlay" id="analytics-overlay"></div>
     <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
     <script type="module" src="/main.js"></script>
-
 </body>
 </html>

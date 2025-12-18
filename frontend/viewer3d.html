@@ -6,94 +6,77 @@
     <title>Cascadia Earthquake 3D Viewer</title>
 
     <link rel="icon" type="image/png" href="/src/resources/favicon.ico" />
-
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
+
+    <link rel="stylesheet" href="/src/style.css">
 
     <style>
-        /* Local design tokens specific to 3D viewer */
-        :root {
-            --bg-glass: rgba(255, 255, 255, 0.95);
-            --border-glass: rgba(255, 255, 255, 0.6);
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.15);
-            --primary: #0e7490;         
-            --primary-hover: #0c6380;     
-            --radius: 12px;              
-        }
-
-        /* Base layout */
+        /* 3D-specific overrides */
         body {
             margin: 0;
             overflow: hidden;
-            font-family: 'Inter', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            color: var(--text-main);
         }
-
-        /* Cesium map container: always full screen */
+        
         #cesiumContainer {
             position: absolute;
             inset: 0;
         }
 
-        .cesium-selection-wrapper {
+        .cesium-selection-wrapper,
+        .cesium-infoBox,
+        .cesium-viewer-infoBoxContainer {
             display: none !important;
         }
 
-        /* Header with back button and basemap toggle */
+        /* Header for 3D */
         .header-3d {
             position: absolute;
             top: 20px;
             left: 20px;
-            width: 240px;
+            width: 280px;  /* Match sidebar width */
             display: flex;
-            justify-content: space-between;
+            justify-content: space-between;  /* Changed from gap */
             align-items: center;
             z-index: 100;
-            pointer-events: none;
-            background: transparent;
-            box-shadow: none;
-        }
-
-        .header-3d > * {
-            pointer-events: auto;
         }
 
         .btn-back {
-            background: var(--bg-glass);
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(12px);
-            border: 1px solid var(--border-glass);
+            border: 1px solid rgba(255, 255, 255, 0.6);
             padding: 8px 14px;
             border-radius: 100px;
-            color: var(--text-main);
+            color: #1e293b;
             font-weight: 600;
             font-size: 12px;
             cursor: pointer;
-            box-shadow: var(--shadow-soft);
-            transition: all 0.2s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s;
+            text-decoration: none;
             display: flex;
             align-items: center;
             gap: 6px;
-            text-decoration: none;
-            white-space: nowrap;
         }
 
         .btn-back:hover {
             transform: translateY(-1px);
             background: white;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
         .toggle-container {
-            background: var(--bg-glass);
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(12px);
             padding: 3px;
             border-radius: 100px;
-            border: 1px solid var(--border-glass);
-            box-shadow: var(--shadow-soft);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
             display: flex;
             gap: 2px;
         }
@@ -105,270 +88,50 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            color: var(--text-muted);
-            user-select: none;
+            color: #64748b;
         }
 
         .toggle-option.active {
             background: white;
-            color: var(--primary);
+            color: #0b4a53;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* Left control panels */
-        .controls-panel {
+        /* Sidebar positioning for 3D */
+        .sidebar-container {
             position: absolute;
             top: 80px;
             left: 20px;
-            width: 240px;
+            width: 280px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
             z-index: 90;
+            padding-bottom: 20px;
         }
 
-        .panel {
-            background: var(--bg-glass);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-glass);
-            border-radius: var(--radius);
-            padding: 12px;
-            box-shadow: var(--shadow-soft);
-            margin-bottom: 10px;
-        }
-
-        .panel-header {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .panel-header::after {
-            content: "";
-            flex: 1;
-            height: 1px;
-            background: rgba(0,0,0,0.1);
-        }
-
-        .input-group {
-            margin-bottom: 14px;
-        }
-
-        .input-label {
-            display: block;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 6px;
-        }
-
-        .row-inputs {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .styled-input {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 12px;
-            background: rgba(255,255,255,0.5);
-            transition: border 0.2s;
-        }
-
-        .styled-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: white;
-        }
-
-        .chip-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-        }
-
-        .chip-input {
+        .sidebar-container::-webkit-scrollbar {
             display: none;
         }
 
-        .chip-label {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 6px 0;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-muted);
-            background: rgba(255,255,255,0.4);
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
+        .sidebar-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
 
-        .chip-label:hover {
-            background: rgba(255,255,255,0.8);
-        }
-
-        .chip-input:checked + .chip-label {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(14, 116, 144, 0.3);
-        }
-
-        .btn-row {
-            display: flex;
-            gap: 8px;
-            margin-top: 18px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: 8px;
-            border: none;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 4px 6px rgba(14, 116, 144, 0.2);
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        .btn-ghost {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid transparent;
-        }
-
-        .btn-ghost:hover {
-            background: rgba(0,0,0,0.05);
-            color: var(--text-main);
-        }
-
-        /* Export panel */
-        .export-header {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .export-icon {
-            font-size: 13px;
-            display: inline-block;
-            margin-right: 6px;
-        }
-
-        .export-row {
-            display: flex;
-            gap: 6px;
-        }
-
-        .btn-export {
-            flex: 1;
-            padding: 8px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-            font-family: inherit;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-        }
-
-        .btn-export:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(14, 116, 144, 0.3);
-        }
-
-        .export-hint {
-            margin-top: 6px;
-            font-size: 9px;
-            color: var(--text-muted);
-            text-align: center;
-            font-style: italic;
-        }
-
-        /* Footer legend + logos */
+        /* Footer for 3D */
         .footer-container {
             position: absolute;
-            bottom: 20px;
+            bottom: 25px;
             left: 0;
             right: 0;
-            pointer-events: none;
             display: flex;
             justify-content: center;
             align-items: flex-end;
+            pointer-events: none;
             z-index: 90;
         }
 
-        .legend-panel {
-            pointer-events: auto;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 16px;
-            padding: 8px 16px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-glass);
-            border-radius: 100px;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .legend-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding-right: 8px;
-            border-right: 1px solid rgba(0,0,0,0.1);
-            margin-right: 4px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--text-main);
-        }
-
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .logo-area {
+        .logo-area-3d {
             position: absolute;
             right: 20px;
             bottom: 0;
@@ -376,96 +139,18 @@
             text-align: right;
         }
 
-        .logo-area img {
+        .logo-area-3d img {
             height: 45px;
             opacity: 0.9;
-            display: block;
-            margin-left: auto;
         }
 
-        .logo-sub {
+        .logo-sub-3d {
             font-size: 10px;
             color: rgba(255,255,255,0.8);
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
             margin-top: 2px;
         }
 
-        /* Cesium info box styling */
-        .cesium-infoBox {
-            background: rgba(30, 41, 59, 0.95) !important;
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.2) !important;
-            border-radius: 12px !important;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.4) !important;
-            color: #e2e8f0 !important;
-            top: 80px !important;
-            max-width: 220px !important;
-            overflow: hidden;
-            transition: opacity 0.2s;
-        }
-
-        .cesium-infoBox-title {
-            background: rgba(255,255,255,0.05) !important;
-            font-family: 'Inter', sans-serif !important;
-            font-size: 11px !important;
-            font-weight: 600 !important;
-            color: #94a3b8 !important;
-            padding: 8px 10px !important;
-            border-bottom: 1px solid rgba(255,255,255,0.1) !important;
-            cursor: move !important;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            padding-right: 50px !important;
-        }
-
-        .cesium-infoBox-title span {
-            pointer-events: none;
-        }
-
-        .cesium-infoBox-camera {
-            display: block !important;
-            top: 7px !important;
-            right: 32px !important;
-            filter: invert(1) sepia(1) saturate(5) hue-rotate(130deg) brightness(1.5) !important;
-            opacity: 0.9 !important;
-            transform: scale(0.9);
-        }
-
-        .cesium-infoBox-camera:hover {
-            opacity: 1 !important;
-            transform: scale(1.1);
-        }
-
-        .cesium-infoBox-close {
-            top: 8px !important;
-            right: 8px !important;
-            width: 14px !important;
-            height: 14px !important;
-            background: transparent !important;
-            font-size: 14px !important;
-            font-weight: bold;
-            color: rgba(255,255,255,0.5) !important;
-            line-height: 14px !important;
-            text-align: center;
-        }
-
-        .cesium-infoBox-close:hover {
-            color: white !important;
-        }
-
-        .cesium-infoBox-body {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-
-        .cesium-infoBox-iframe {
-            background: transparent !important;
-        }
-
-        /* Camera zoom overlay */
         .camera-status {
             position: absolute;
             bottom: 40px;
@@ -475,54 +160,28 @@
             background: rgba(0, 0, 0, 0.6);
             color: #ffffff;
             border-radius: 4px;
-            pointer-events: none;
             z-index: 100;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .cesium-viewer-distanceLegendContainer {
-            left: 320px;
-            bottom: 40px;
-            z-index: 90;
-        }
-
-        @media (max-width: 600px) {
-            .controls-panel {
-                width: calc(100% - 40px);
-                top: auto;
-                bottom: 120px;
-            }
-            .footer-container {
-                flex-direction: column-reverse;
-                align-items: center;
-                gap: 10px;
-                bottom: 10px;
-            }
-            .logo-area {
-                display: none;
-            }
-            .header-3d {
-                width: auto;
-                left: 20px;
-                right: 20px;
-            }
         }
     </style>
 </head>
 <body>
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading earthquakes...</div>
+        </div>
+    </div>
 
-    <!-- We must make sure the map container is a top-level sibling, NOT inside any panel -->
     <div id="cesiumContainer"></div>
 
     <header class="header-3d">
-        <button class="btn-back" onclick="window.location.href='/'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <a href="/index.html" class="btn-back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M19 12H5"></path>
                 <path d="M12 19l-7-7 7-7"></path>
             </svg>
             2D Map
-        </button>
+        </a>
 
         <div class="toggle-container">
             <div class="toggle-option active" id="opt-sat" onclick="uiSetMode('satellite')">Satellite</div>
@@ -530,94 +189,154 @@
         </div>
     </header>
 
-    <div class="controls-panel">
-        <!-- Filters panel -->
-        <div class="panel">
-            <div class="panel-header">Filters</div>
+    <div class="sidebar-container">
+        <div class="glass-panel" id="filters-panel">
+            <div class="panel-header">Catalog & Filters</div>
+            
+            <div class="filter-group-clean">
+                <label class="label-clean catalog-label">Catalog</label>
+                <select id="catalog-select-3d" class="select-clean">
+                    <option value="1">Brenton et al. — Cascadia ML (279K)</option>
+                    <option value="2">Littel et al. — Queen Charlotte (18K)</option>
+                    <option value="3">Merrill et al. — Nootka Fault (92K)</option>
+                    <option value="5">Morton et al. — Cascadia Subduction (5K)</option>
+                    <option value="6">Shelly et al. — LFE (61K)</option>
+                    <option value="7">Bostock et al. — LFE (269K)</option>
+                    <option value="8">Hirao et al. — Mt St Helens (31K)</option>
+                    <option value="9">Stone et al. — Offshore (268)</option>
+                </select>
+            </div>
 
-            <div class="input-group">
-                <label class="input-label">Depth Range (km)</label>
-                <div class="row-inputs">
-                    <input type="number" id="depth-min-3d" class="styled-input" value="0" min="0">
-                    <span style="color:var(--text-muted); font-size:11px;">to</span>
-                    <input type="number" id="depth-max-3d" class="styled-input" value="100" max="100">
+            <details class="filter-section" open>
+                <summary class="filter-header">
+                    Depth Range
+                    <span class="filter-badge">
+                        <span id="depth-min-val-3d">0</span>–<span id="depth-max-val-3d">100</span> km
+                    </span>
+                </summary>
+                <div class="filter-content">
+                    <div id="depth-slider-3d" class="slider"></div>
                 </div>
-            </div>
+            </details>
 
-            <div class="input-group">
-                <label class="input-label">Active Regions</label>
-                <div class="chip-grid">
-                    <input type="checkbox" id="w1" class="chip-input region-3d" value="W1" checked>
-                    <label for="w1" class="chip-label">W1</label>
-                    <input type="checkbox" id="w2" class="chip-input region-3d" value="W2" checked>
-                    <label for="w2" class="chip-label">W2</label>
-                    <input type="checkbox" id="w3" class="chip-input region-3d" value="W3" checked>
-                    <label for="w3" class="chip-label">W3</label>
-                    <input type="checkbox" id="e1" class="chip-input region-3d" value="E1" checked>
-                    <label for="e1" class="chip-label">E1</label>
-                    <input type="checkbox" id="e2" class="chip-input region-3d" value="E2" checked>
-                    <label for="e2" class="chip-label">E2</label>
-                    <input type="checkbox" id="e3" class="chip-input region-3d" value="E3" checked>
-                    <label for="e3" class="chip-label">E3</label>
+            <details class="filter-section" open>
+                <summary class="filter-header">
+                    Magnitude
+                    <span class="filter-badge">
+                        <span id="mag-min-val-3d">0.0</span>–<span id="mag-max-val-3d">10.0</span>
+                    </span>
+                </summary>
+                <div class="filter-content">
+                    <div id="magnitude-slider-3d" class="slider"></div>
                 </div>
-            </div>
+            </details>
 
-            <div class="input-group">
-                <label class="input-label">Max Points</label>
-                <input type="number" id="limit-3d" class="styled-input" value="10000" step="1000">
-            </div>
+            <details class="filter-section simple">
+                <summary class="filter-header">Date Range</summary>
+                <div class="filter-content">
+                    <div class="date-grid">
+                        <div>
+                            <label class="input-label" for="start-date-3d">Start Date</label>
+                            <input type="text" id="start-date-3d" class="date-input" placeholder="mm/dd/yyyy">
+                        </div>
+                        <div>
+                            <label class="input-label" for="end-date-3d">End Date</label>
+                            <input type="text" id="end-date-3d" class="date-input" placeholder="mm/dd/yyyy">
+                        </div>
+                    </div>
+                </div>
+            </details>
 
-            <div class="btn-row">
-                <button class="btn btn-ghost" onclick="resetFilters3D()">Reset</button>
-                <button class="btn btn-primary" onclick="applyFilters3D()">Update</button>
+            <details class="filter-section simple">
+                <summary class="filter-header">Spatial Bounds</summary>
+                <div class="filter-content">
+                    <div class="spatial-grid">
+                        <div>
+                            <label class="input-label" for="min-lat-3d">Min Latitude</label>
+                            <input type="number" id="min-lat-3d" name="min-lat-3d" class="spatial-input" step="0.1" placeholder="e.g., 39">
+                        </div>
+                        <div>
+                            <label class="input-label" for="max-lat-3d">Max Latitude</label>
+                            <input type="number" id="max-lat-3d" name="max-lat-3d" class="spatial-input" step="0.1" placeholder="e.g., 52">
+                        </div>
+                        <div>
+                            <label class="input-label" for="min-lon-3d">Min Longitude</label>
+                            <input type="number" id="min-lon-3d" name="min-lon-3d" class="spatial-input" step="0.1" placeholder="e.g., -130">
+                        </div>
+                        <div>
+                            <label class="input-label" for="max-lon-3d">Max Longitude</label>
+                            <input type="number" id="max-lon-3d" name="max-lon-3d" class="spatial-input" step="0.1" placeholder="e.g., -116">
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <div class="filter-actions">
+                <button id="show-all-3d" class="btn-show-all">Show All Events</button>
+                <div class="filter-actions-row">
+                    <button id="reset-filters-3d" class="btn-secondary">Reset Filters</button>
+                    <button id="apply-filters-3d" class="btn-primary">Apply Filters</button>
+                </div>
             </div>
         </div>
 
-        <!-- Export panel -->
-        <div class="panel">
-            <div class="export-header">Export Data</div>
-            <div class="export-row">
+        <div class="glass-panel export-panel">
+            <div class="panel-header">Export Data</div>
+            <div class="export-buttons">
                 <button onclick="download3DData('geojson')" class="btn-export">
-                    <span class="export-icon">📥</span>
-                    GeoJSON
+                    <span class="export-icon">📥</span> GeoJSON
                 </button>
                 <button onclick="download3DData('csv')" class="btn-export">
-                    <span class="export-icon">📊</span>
-                    CSV
+                    <span class="export-icon">📊</span> CSV
                 </button>
             </div>
-            <div class="export-hint">Downloads currently visible earthquakes</div>
+            <div class="export-hint">Downloads filtered earthquakes in current map view</div>
+        </div>
+
+        <div class="glass-panel details-panel">
+            <div class="panel-header">Selected Event</div>
+            <div id="selected-empty-3d" class="empty-state">
+                Click on any earthquake to view details.
+            </div>
+            <div id="selected-content-3d" class="panel-content d-none"></div>
         </div>
     </div>
 
     <div class="footer-container">
         <div class="panel legend-panel">
             <div class="legend-title">Depth</div>
-            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0-20</div>
-            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20-40</div>
+            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0–20</div>
+            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20–40</div>
             <div class="legend-item"><div class="dot" style="background: #dc2626;"></div> 40+ km</div>
         </div>
-        <div class="logo-area">
+        <div class="logo-area-3d">
             <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT">
-            <div class="logo-sub">Interactive 3D Catalog</div>
+            <div class="logo-sub-3d">Interactive 3D Catalog</div>
         </div>
     </div>
 
-    <div id="camera-status" class="camera-status">
-        Zoom: --
-    </div>
+    <div id="camera-status" class="camera-status">Zoom: --</div>
 
     <script>
-        /* Basemap mode toggle handler */
         function uiSetMode(mode) {
             document.querySelectorAll('.toggle-option').forEach(el => el.classList.remove('active'));
             if (mode === 'satellite') document.getElementById('opt-sat').classList.add('active');
             if (mode === 'dark') document.getElementById('opt-dark').classList.add('active');
-
-            if (window.setTerrainModeFromSelect) {
-                window.setTerrainModeFromSelect(mode);
-            }
+            if (window.setTerrainModeFromSelect) window.setTerrainModeFromSelect(mode);
         }
+
+        // Button handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('show-all-3d').addEventListener('click', () => {
+                if (window.showAllEvents3D) window.showAllEvents3D();
+            });
+            document.getElementById('reset-filters-3d').addEventListener('click', () => {
+                if (window.resetFilters3D) window.resetFilters3D();
+            });
+            document.getElementById('apply-filters-3d').addEventListener('click', () => {
+                if (window.applyFilters3D) window.applyFilters3D();
+            });
+        });
     </script>
 
     <script type="module" src="/src/cesium3d.js"></script>
