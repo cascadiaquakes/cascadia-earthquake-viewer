@@ -33,12 +33,13 @@ app.get('/api/catalogs', async (req, res) => {
                 network_codes, 
                 region, 
                 num_events,
-                time_span,
-                detection_method,
-                association_method,
-                location_method,
-                velocity_model,
-                additional_notes
+                publication_title,
+                start_date::text as start_date,
+                end_date::text as end_date,
+                submitted_by,
+                submission_date::text as submission_date,
+                status,
+                metadata
             FROM earthquake.catalogs
             WHERE status = 'active'
             ORDER BY catalog_id
@@ -48,7 +49,7 @@ app.get('/api/catalogs', async (req, res) => {
         console.error('Error fetching catalogs:', error);
         res.status(500).json({ error: 'Failed to fetch catalogs' });
     }
-});
+})
 
 // Get earthquakes with filters
 app.get('/api/earthquakes', async (req, res) => {
