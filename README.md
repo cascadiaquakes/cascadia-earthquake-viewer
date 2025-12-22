@@ -1,40 +1,40 @@
 # Cascadia Earthquake Catalog Viewer
 
-Interactive web-based visualization tool for exploring multiple earthquake catalogs across the Cascadia region.
+Interactive, web-based visualization tool for exploring curated earthquake catalogs across the Cascadia region.
 
-## 🌍 Available Catalogs
+This viewer is part of the **CRESCENT Earthquake Catalog ecosystem** and is designed to provide fast, interactive access to multiple published and curated seismic catalogs for research, exploration, and outreach.
 
-### 1. Brenton et al. — Cascadia ML Catalog (279,060 events)
-- **Technique**: Machine Learning
-- **Networks**: UW, CN, CC
-- **Region**: Cascadia Subduction Zone
-- **Coverage**: 2002-2020
+---
 
-### 2. Littel et al. 2024 — Queen Charlotte (18,038 events)
-- **DOI**: [10.1029/2022TC007494](https://doi.org/10.1029/2022TC007494)
-- **Technique**: hypoDD relocation
-- **Networks**: GSC, CHIS
-- **Region**: Queen Charlotte Triple Junction
+## 📚 Official Catalog Documentation (JupyterBook)
 
-### 3. Merrill et al. — Nootka Fault Zone (92,002 events)
-- **DOI**: [10.1029/2021GC010205](https://doi.org/10.1029/2021GC010205)
-- **Technique**: REST algorithm + tomoDD
-- **Networks**: CHIS
-- **Region**: Nootka Fault Zone
+**Note that authoritative documentation for all earthquake catalogs lives here:**
 
-### 4. Morton et al. 2023 — Cascadia Subduction (5,282 events)
-- **DOI**: [10.1029/2023JB026607](https://doi.org/10.1029/2023JB026607)
-- **Technique**: Subspace detection + Hypoinverse
-- **Networks**: Cascadia Initiative
-- **Region**: Cascadia Subduction Zone
+🔗 **https://cascadiaquakes.github.io/earthquake_catalog_repository/**
 
-### 5. Shelly et al. 2025 — LFE Southern Cascadia (61,441 events)
-- **DOI**: [10.1029/2025GL116116](https://doi.org/10.1029/2025GL116116)
-- **Technique**: Template matching + cross-correlation
-- **Networks**: BK, NC
-- **Region**: Southern Cascadia (MTJ region)
+The JupyterBook contains:
+- Detailed catalog descriptions and provenance  
+- Detection, association, and location methodologies  
+- Velocity models and processing workflows  
+- Reproducible notebooks and figures  
+- Guidance for extending and updating catalogs  
 
-**Total Events**: 455,823 across all catalogs
+> **If you are looking for scientific details or catalog construction methods, please start with the JupyterBook above.**
+
+---
+
+##  Catalogs Available in the Viewer
+
+The viewer currently supports **8 curated earthquake catalogs**, totaling **~746,000 events**, including:
+
+1. **Brenton et al. — Cascadia ML Catalog v1**  
+2. **Bostock et al. 2015 — LFEs (Southern Vancouver Island)**  
+3. **Hirao et al. 2025 — Mount St. Helens**  
+4. **Littel et al. 2024 — Queen Charlotte Triple Junction**  
+5. **Merrill et al. — Nootka Fault Zone**  
+6. **Morton et al. 2023 — Cascadia Subduction Zone**  
+7. **Shelly et al. 2025 — Southern Cascadia LFEs**  
+8. **Stone et al. — Offshore Cascadia**
 
 ---
 
@@ -135,6 +135,9 @@ npm run dev
 - 3D Globe: http://localhost:5173/viewer3d.html
 - API: http://localhost:3002
 
+**View the live application here:**
+ https://d1a5q8bsxutjyg.cloudfront.net/index.html
+
 ---
 
 ## Project Structure
@@ -143,61 +146,49 @@ npm run dev
 cascadia-earthquake-viewer/
 ├── backend/
 │   ├── src/
-│   │   ├── api.js              # Express API talking to Postgres/Martin
-│   │   ├── cesium3d.js         # 3D tiles / helper logic (node-side)
-│   │   └── main.js             # Backend entry point (npm start)
-│   ├── config.yaml             # Martin tile server config
-│   ├── docker-compose.yml      # PostgreSQL + PostGIS + Martin stack
-│   ├── eq-style.json           # Martin vector style for earthquake tiles
-│   ├── gis_backup.dump         # Postgres/PostGIS database backup
-│   ├── index.html              # Martin demo viewer (debug only)
-│   ├── testtile.pbf            # Sample tile for testing
-│   ├── tile_0_0_0.pbf          # Extra sample tiles (debug)
-│   ├── tile_5_4_12.pbf
-│   ├── tile_5_5_11.pbf
-│   ├── tile_5_5_12.pbf
-│   ├── package.json            # Backend dependencies & scripts
-│   └── package-lock.json
-│   # Generated at runtime:
-│   # ├── node_modules/         # Installed backend dependencies
-│   # └── pgdata/               # Postgres data directory
+│   │   ├── cesium3d.js         # Backend logic for 3D tiles
+│   │   └── main.js             # API entry point
+│   ├── api.js                  # Express API handlers
+│   ├── config.yaml             # Martin Tile Server configuration
+│   ├── eq-style.json           # Vector tile style definition
+│   ├── Dockerfile              # Backend container definition
+│   ├── docker-compose.yml      # Local development stack (DB + Backend)
+│   ├── package.json            # Node dependencies
+│   └── *.pbf                   # Local map tile cache/test files
 │
 ├── frontend/
 │   ├── public/
-│   │   ├── geojson/
-│   │   │   ├── georef-canada-province-public.geojson # Canada provinces
-│   │   │   └── us-states.json                        # US states
+│   │   ├── geojson/            # Static data (US States, Canada provinces)
 │   │   └── vite.svg
-│   │
 │   ├── src/
-│   │   ├── maplibre/           # 2D map configuration
-│   │   │   ├── baselayer.js    # Basemap style & source wiring
-│   │   │   ├── config.js       # Map constants (ids, colors, bounds)
-│   │   │   ├── layers.js       # Depth legend, boundary, helpers
-│   │   │   └── viewer.js       # (Optional) older viewer helper
-│   │   ├── resources/          # Logos and static assets
-│   │   │   ├── Crescent_Logo.png
-│   │   │   ├── favicon.ico
-│   │   │   └── USNSF_Logo.png
-│   │   ├── cesium3d.js         # Frontend Cesium 3D globe code
-│   │   ├── counter.js          # Vite scaffold (not used in app)
-│   │   ├── earthquake-filters-config.js  # Filter definitions (sliders, etc.)
-│   │   ├── filter-builder.js   # Builds filter payloads for API
-│   │   ├── filters.js          # 2D filter UI wiring
-│   │   ├── javascript.svg
-│   │   ├── resize.js           # Layout / resize helpers
-│   │   └── style.css           # Global styling (2D + 3D)
-│   │
-│   ├── index.html              # 2D earthquake viewer shell
-│   ├── viewer3d.html           # 3D earthquake viewer shell
-│   ├── main.js                 # 2D app entry point (clustering + export)
-│   ├── vite.config.js          # Vite dev/build config
-│   ├── package.json            # Frontend dependencies & scripts
-│   └── package-lock.json
-│   # Generated at runtime:
-│   # └── node_modules/         # Installed frontend dependencies
+│   │   ├── maplibre/           # 2D MapLibre logic folder
+│   │   │   ├── baselayer.js    # Base map configurations
+│   │   │   ├── config.js       # Map constants and settings
+│   │   │   ├── layers.js       # Layer management
+│   │   │   └── viewer.js       # Viewer initialization
+│   │   ├── analytics.js        # Insights on analytics
+│   │   ├── cesium3d.js         # Frontend Cesium 3D logic
+│   │   ├── config.js           # Frontend global config
+│   │   ├── earthquake-filters-config.js # Filter UI settings
+│   │   ├── filter-builder.js   # Logic to construct API queries
+│   │   ├── filters.js          # Filter event listeners
+│   │   ├── resize.js           # Window resize handlers
+│   │   └── style.css           # Global application styles
+│   ├── index.html              # Main entry point (2D Viewer)
+│   ├── viewer3d.html           # Entry point for 3D Viewer
+│   ├── main.js                 # Frontend application bootstrap
+│   └── vite.config.js          # Vite build configuration
 │
-└── README.md
+├── eq-infra/                   # AWS CDK Infrastructure as Code
+│   ├── eq_infra/
+│   │   ├── earthquake_stack.py # Defines AWS resources (EC2, RDS, VPC)
+│   │   └── eq_infra_stack.py   # Infrastructure stack definition
+│   ├── app.py                  # CDK Application entry point
+│   ├── cdk.json                # CDK Context and settings
+│   └── requirements.txt        # Python dependencies for CDK
+│
+├── docker-compose.yml          # Root orchestration
+└── README.md                   # Project documentation
 
 
 ---
@@ -440,3 +431,4 @@ For technical questions or issues:
 
 **Version:** v1.0 (demo)  
 **Last Updated:** December 2025
+

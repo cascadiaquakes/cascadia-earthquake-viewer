@@ -23,7 +23,6 @@ export function initAnalytics() {
     closeBtn.addEventListener('click', closeAnalytics);
     overlay.addEventListener('click', closeAnalytics);
     
-    // CRITICAL: Stop clicks inside panel from closing it
     panel.addEventListener('click', (e) => {
         e.stopPropagation();
     });
@@ -52,14 +51,11 @@ function updateTimelineChart(earthquakes) {
         yearCounts[year] = (yearCounts[year] || 0) + 1;
     });
     
-    const years = Object.keys(yearCounts).sort();
+    const years = Object.keys(yearCounts).sort((a, b) => a - b);
     const counts = years.map(year => yearCounts[year]);
     
     const canvas = document.getElementById('chart-timeline');
-    if (!canvas) {
-        console.warn('Timeline chart canvas not found');
-        return;
-    }
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     
@@ -91,12 +87,8 @@ function updateTimelineChart(earthquakes) {
                     title: { display: true, text: 'Number of Events' }
                 },
                 x: {
-                    title: { display: true, text: 'Year' },
-                    ticks: {
-                        callback: function(value) {
-                            return Math.floor(value); // Remove decimals and commas
-                        }
-                    }
+                    type: 'category',
+                    title: { display: true, text: 'Year' }
                 }
             }
         }
@@ -123,10 +115,7 @@ function updateMagnitudeChart(earthquakes) {
     const labels = bins.slice(0, -1).map((bin, i) => `${bin}-${bins[i + 1]}`);
     
     const canvas = document.getElementById('chart-magnitude');
-    if (!canvas) {
-        console.warn('Magnitude chart canvas not found');
-        return;
-    }
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     
@@ -183,10 +172,7 @@ function updateDepthChart(earthquakes) {
     const labels = bins.slice(0, -1).map((bin, i) => `${bin}-${bins[i + 1]}`);
     
     const canvas = document.getElementById('chart-depth');
-    if (!canvas) {
-        console.warn('Depth chart canvas not found');
-        return;
-    }
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     
@@ -225,78 +211,102 @@ function updateDepthChart(earthquakes) {
     });
 }
 
-function updateDepthTimeChart(earthquakes) {
-    // Time on X-axis, Depth on Y-axis
-    const data = earthquakes
-        .filter(eq => eq.properties.origin_time && eq.properties.depth)
-        .map(eq => ({
-            x: new Date(eq.properties.origin_time).getFullYear(),
-            y: eq.properties.depth
-        }));
-    
+function updateDepthTimeChart(earthquakes, options = {}) {
+    const {
+        catalogId = null,
+        depthSplitKm = 2,
+        reservoirDepthKm = null
+    } = options;
+
+    const shallow = [];
+    const deep = [];
+
+    earthquakes.forEach(eq => {
+        const time = eq.properties?.origin_time;
+        const depth = eq.properties?.depth;
+        const catId = eq.properties?.catalog_id;
+
+        if (!time || depth == null) return;
+        if (catalogId !== null && catId !== catalogId) return;
+
+        const point = {
+            x: new Date(time),
+            y: depth
+        };
+
+        if (depth <= depthSplitKm) {
+            shallow.push(point);
+        } else {
+            deep.push(point);
+        }
+    });
+
     const canvas = document.getElementById('chart-depth-time');
-    if (!canvas) {
-        console.warn('Depth-time chart canvas not found');
-        return;
-    }
-    
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d');
-    
+
     if (depthTimeChart) {
         depthTimeChart.destroy();
     }
-    
+
     depthTimeChart = new Chart(ctx, {
         type: 'scatter',
         data: {
-            datasets: [{
-                label: 'Earthquake Depth',
-                data: data,
-                backgroundColor: 'rgba(14, 116, 144, 0.5)',
-                borderColor: 'rgba(14, 116, 144, 1)',
-                pointRadius: 2
-            }]
+            datasets: [
+                {
+                    label: `Shallow (≤ ${depthSplitKm} km BSL)`,
+                    data: shallow,
+                    backgroundColor: 'rgba(234, 88, 12, 0.35)',
+                    pointRadius: 2
+                },
+                {
+                    label: `Deep (> ${depthSplitKm} km BSL)`,
+                    data: deep,
+                    backgroundColor: 'rgba(37, 99, 235, 0.35)',
+                    pointRadius: 2
+                },
+                ...(reservoirDepthKm !== null ? [{
+                    label: 'Estimated magma reservoir top',
+                    data: shallow.map(p => ({ x: p.x, y: reservoirDepthKm })),
+                    type: 'line',
+                    borderColor: 'rgba(220, 38, 38, 0.7)',
+                    borderDash: [6, 4],
+                    pointRadius: 0
+                }] : [])
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: { display: false },
+                legend: { display: true },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            return `Year: ${context.parsed.x}, Depth: ${context.parsed.y.toFixed(1)} km`;
+                        label: ctx => {
+                            const d = ctx.parsed;
+                            return `Date: ${ctx.raw.x.toISOString().slice(0,10)}, Depth: ${d.y.toFixed(2)} km BSL`;
                         }
                     }
                 }
             },
             scales: {
-                y: {
-                    type: 'logarithmic',  // Logarithmic scale for better differentiation
-                    beginAtZero: false,
-                    min: 0.1,  // Start slightly above 0 for log scale
-                    title: { 
-                        display: true, 
-                        text: 'Depth (km) - Log Scale' 
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'year',
+                        tooltipFormat: 'yyyy-MM-dd'
                     },
-                    ticks: {
-                        callback: function(value) {
-                            // Show clean numbers: 0.1, 1, 10, 100
-                            if (value === 0.1 || value === 1 || value === 10 || value === 100) {
-                                return value;
-                            }
-                            return null;
-                        }
+                    title: {
+                        display: true,
+                        text: 'Time'
                     }
                 },
-                x: {
-                    type: 'linear',
-                    title: { display: true, text: 'Year' },
-                    ticks: {
-                        stepSize: 1,
-                        callback: function(value) {
-                            return Math.floor(value);  // Integer years only, no commas
-                        }
+                y: {
+                    reverse: true,
+                    title: {
+                        display: true,
+                        text: 'Depth below sea level (km)'
                     }
                 }
             }
@@ -304,5 +314,4 @@ function updateDepthTimeChart(earthquakes) {
     });
 }
 
-// Make updateAnalytics available globally
 window.updateAnalytics = updateAnalytics;

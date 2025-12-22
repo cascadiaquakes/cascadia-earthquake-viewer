@@ -81,21 +81,37 @@ function updateCatalogMetadata(catalogId) {
     const catalog = catalogsData.find(c => c.catalog_id === parseInt(catalogId));
     if (!catalog) return;
     
+    // Update DOI link
     document.getElementById('catalog-doi').href = catalog.doi && catalog.doi !== 'none' 
         ? `https://doi.org/${catalog.doi}` 
         : '#';
     document.getElementById('catalog-doi').textContent = catalog.doi && catalog.doi !== 'none' 
         ? 'View Paper' 
         : 'No DOI';
+    
+    // Update region
     document.getElementById('catalog-region').textContent = catalog.region || '—';
-    document.getElementById('catalog-timespan').textContent = catalog.time_span || '—';
+    
+    // Update time span from start_date and end_date
+    let timespan = '—';
+    if (catalog.start_date && catalog.end_date) {
+        const start = new Date(catalog.start_date).getFullYear();
+        const end = new Date(catalog.end_date).getFullYear();
+        timespan = `${start}–${end}`;
+    }
+    document.getElementById('catalog-timespan').textContent = timespan;
+    
+    // Update event count
     document.getElementById('catalog-count').textContent = catalog.num_events 
         ? catalog.num_events.toLocaleString() 
         : '—';
-    document.getElementById('catalog-detection').textContent = catalog.detection_method || '—';
-    document.getElementById('catalog-association').textContent = catalog.association_method || '—';
-    document.getElementById('catalog-location').textContent = catalog.location_method || '—';
-    document.getElementById('catalog-velocity').textContent = catalog.velocity_model || '—';
+    
+    // Update metadata fields from JSONB object
+    const metadata = catalog.metadata || {};
+    document.getElementById('catalog-detection').textContent = metadata.detection_method || '—';
+    document.getElementById('catalog-association').textContent = metadata.association_method || '—';
+    document.getElementById('catalog-location').textContent = metadata.location_method || '—';
+    document.getElementById('catalog-velocity').textContent = metadata.velocity_model || '—';
 }
 
 export async function loadEarthquakes(catalogId = 1, limit = 50000) {
