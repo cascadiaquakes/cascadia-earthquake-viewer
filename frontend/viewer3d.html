@@ -459,7 +459,14 @@
 
     <div class="footer-container">
         <div class="panel legend-panel" id="depth-legend-3d">
-            <div class="legend-title">Depth (km)</div>
+            <div class="legend-header-row">
+                <div class="legend-title">Depth (km)</div>
+                <button class="legend-settings-btn" id="depth-settings-btn-3d" title="Depth scale settings">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/>
+                    </svg>
+                </button>
+            </div>
             <div class="legend-gradient-container">
                 <div class="legend-gradient"></div>
                 <div class="legend-labels">
@@ -468,6 +475,32 @@
                     <span>40</span>
                     <span>60+</span>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Settings Panel (hidden by default) -->
+        <div class="depth-settings-panel" id="depth-settings-panel-3d">
+            <div class="settings-header">Depth Scale Settings</div>
+            <div class="settings-content">
+                <label class="settings-option">
+                    <input type="radio" name="depth-mode-3d" value="auto" checked>
+                    <span>Auto-adjust to catalog</span>
+                </label>
+                <label class="settings-option">
+                    <input type="radio" name="depth-mode-3d" value="custom">
+                    <span>Custom range</span>
+                </label>
+                <div class="custom-range-inputs" id="custom-depth-inputs-3d">
+                    <div class="range-input-group">
+                        <label>Min (km)</label>
+                        <input type="number" id="custom-depth-min-3d" value="0" min="0" max="200" step="5">
+                    </div>
+                    <div class="range-input-group">
+                        <label>Max (km)</label>
+                        <input type="number" id="custom-depth-max-3d" value="60" min="0" max="200" step="5">
+                    </div>
+                </div>
+                <button class="btn-reset-auto" id="reset-depth-auto-3d">Reset to Auto</button>
             </div>
         </div>
         <div class="logo-area-3d">

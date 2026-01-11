@@ -1,6 +1,7 @@
 import * as Cesium from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { getApiUrl } from './config.js';
+import { calculateDepthRange, getDepthColor, generateLegendLabels } from './depthScale3d.js';
 
 Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN;
 
@@ -134,11 +135,10 @@ function hidePoliticalBoundaries() {
     boundaryDataSources.forEach(ds => ds.show = false);
 }
 
-/* Color by depth - EXACT 2D colors */
+/* Color by depth - Auto-adjusts based on current depth range */
 function getColorByDepth(depth) {
-    if (depth < 20) return Cesium.Color.fromCssColorString('#fbbf24').withAlpha(0.7);  // Yellow
-    if (depth < 40) return Cesium.Color.fromCssColorString('#f97316').withAlpha(0.7);  // Orange
-    return Cesium.Color.fromCssColorString('#dc2626').withAlpha(0.7);  // Red
+    const range = window.currentDepthRange3D || { min: 0, max: 60 };
+    return getDepthColor(depth, range.min, range.max).withAlpha(0.7);
 }
 
 /* Store current earthquakes */
@@ -226,11 +226,115 @@ async function loadEarthquakes(filters = {}) {
         }
 
         console.log('✅ Earthquakes rendered');
+        
+        // Auto-adjust depth scale
+        window.currentEarthquakes3D = data.earthquakes;
+        updateDepthScale3D(data.earthquakes);
+        
     } catch (error) {
         console.error('❌ Error loading earthquakes:', error);
     } finally {
         hideLoading();
     }
+}
+/* Re-render earthquakes with updated depth colors */
+function renderEarthquakesWithDepthColors(earthquakes, minDepth, maxDepth) {
+    if (!earthquakes || !viewer) return;
+    
+    earthquakes.forEach(eq => {
+        const entity = viewer.entities.getById(`earthquake-${eq.evid}`);
+        if (entity && entity.point) {
+            entity.point.color = getDepthColor(eq.depth, minDepth, maxDepth);
+        }
+    });
+    
+    console.log('🎨 Updated earthquake colors for new depth range');
+}
+
+
+/* Initialize depth settings panel for 3D */
+function initDepthSettings3D() {
+    const settingsBtn = document.getElementById('depth-settings-btn-3d');
+    const settingsPanel = document.getElementById('depth-settings-panel-3d');
+    const autoRadio = document.querySelector('input[name="depth-mode-3d"][value="auto"]');
+    const customRadio = document.querySelector('input[name="depth-mode-3d"][value="custom"]');
+    const customInputs = document.getElementById('custom-depth-inputs-3d');
+    const minInput = document.getElementById('custom-depth-min-3d');
+    const maxInput = document.getElementById('custom-depth-max-3d');
+    const resetBtn = document.getElementById('reset-depth-auto-3d');
+    
+    if (!settingsBtn || !settingsPanel) return;
+    
+    // Toggle settings panel
+    settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsPanel.classList.toggle('active');
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
+            settingsPanel.classList.remove('active');
+        }
+    });
+    
+    // Toggle between auto and custom mode
+    autoRadio.addEventListener('change', () => {
+        customInputs.classList.remove('active');
+        // Re-apply auto depth scale
+        if (window.currentEarthquakes3D) {
+            updateDepthScale3D(window.currentEarthquakes3D);
+        }
+    });
+    
+    customRadio.addEventListener('change', () => {
+        customInputs.classList.add('active');
+    });
+    
+    // Apply custom depth range
+    const applyCustomRange = () => {
+        if (!customRadio.checked) return;
+        
+        const min = parseInt(minInput.value);
+        const max = parseInt(maxInput.value);
+        
+        if (min >= max) {
+            alert('Min depth must be less than max depth');
+            return;
+        }
+        
+        // Update legend labels
+        const labels = generateLegendLabels(min, max);
+        const legendLabels = document.querySelectorAll('#depth-legend-3d .legend-labels span');
+        if (legendLabels.length === 4) {
+            legendLabels[0].textContent = labels[0];
+            legendLabels[1].textContent = labels[1];
+            legendLabels[2].textContent = labels[2];
+            legendLabels[3].textContent = labels[3];
+        }
+        
+        // Update depth range and re-color points
+        window.currentDepthRange3D = { min, max };
+        if (window.currentEarthquakes3D) {
+            renderEarthquakesWithDepthColors(window.currentEarthquakes3D, min, max);
+        }
+        
+        console.log(`🎨 3D Custom depth range: ${min}-${max} km`);
+    };
+    
+    // Apply when inputs change
+    minInput.addEventListener('change', applyCustomRange);
+    maxInput.addEventListener('change', applyCustomRange);
+    
+    // Reset to auto
+    resetBtn.addEventListener('click', () => {
+        autoRadio.checked = true;
+        customInputs.classList.remove('active');
+        if (window.currentEarthquakes3D) {
+            updateDepthScale3D(window.currentEarthquakes3D);
+        }
+        settingsPanel.classList.remove('active');
+    });
 }
 
 /* Draw spatial boundary box */
@@ -436,7 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('depth-max-val-3d').textContent = Math.round(values[1]);
         });
     }
-
+    
+    // Initialize depth settings panel
+    initDepthSettings3D();
+    
     // Initialize magnitude slider
     const magSlider = document.getElementById('magnitude-slider-3d');
     if (magSlider && window.noUiSlider) {
@@ -467,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
         flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
         flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
     }
-});
+});  // ← THIS CLOSES DOMContentLoaded
 
 /* Click handler */
 let currentPopup = null;

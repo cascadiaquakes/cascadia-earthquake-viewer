@@ -3,6 +3,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { initFilters } from './src/filters.js';
 import { initAnalytics, updateAnalytics } from './src/analytics.js';
 import { getApiUrl } from './src/config.js';
+import { calculateDepthRange, generateDepthColorStops, generateLegendLabels } from './src/depthScale.js';
 
 /* Show/hide loading indicator */
 export function showLoading() {
@@ -148,7 +149,6 @@ export async function loadEarthquakes(catalogId = 1, limit = 50000) {
                     vertical_error: eq.vertical_error_km,
                     origin_time: eq.origin_time,
                     region: eq.region || 'N/A'
-                    // REMOVED: time: new Date(eq.origin_time).toLocaleString()
                 }
             }))
         };
@@ -160,6 +160,121 @@ export async function loadEarthquakes(catalogId = 1, limit = 50000) {
 }
 
 window.loadEarthquakes = loadEarthquakes;
+
+
+
+/* Update depth scale based on loaded data */
+function updateDepthScale(features) {
+    const depthRange = calculateDepthRange(features);
+    console.log(`📊 Auto depth range: ${depthRange.min}-${depthRange.max} km`);
+    
+    // Update map layer colors
+    const colorStops = generateDepthColorStops(depthRange.min, depthRange.max);
+    map.setPaintProperty('eq-points', 'circle-color', colorStops);
+    
+    // Update legend labels
+    const labels = generateLegendLabels(depthRange.min, depthRange.max);
+    const legendLabels = document.querySelectorAll('.legend-labels span');
+    if (legendLabels.length === 4) {
+        legendLabels[0].textContent = labels[0];
+        legendLabels[1].textContent = labels[1];
+        legendLabels[2].textContent = labels[2];
+        legendLabels[3].textContent = labels[3];
+    }
+    
+    // Store current range for settings panel (we'll add this later)
+    window.currentDepthRange = depthRange;
+}
+
+window.updateDepthScale = updateDepthScale;
+
+/* Initialize depth settings panel */
+function initDepthSettings() {
+    const settingsBtn = document.getElementById('depth-settings-btn');
+    const settingsPanel = document.getElementById('depth-settings-panel');
+    const autoRadio = document.querySelector('input[name="depth-mode"][value="auto"]');
+    const customRadio = document.querySelector('input[name="depth-mode"][value="custom"]');
+    const customInputs = document.getElementById('custom-depth-inputs');
+    const minInput = document.getElementById('custom-depth-min');
+    const maxInput = document.getElementById('custom-depth-max');
+    const resetBtn = document.getElementById('reset-depth-auto');
+    
+    if (!settingsBtn || !settingsPanel) return;
+    
+    // Toggle settings panel
+    settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsPanel.classList.toggle('active');
+    });
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
+            settingsPanel.classList.remove('active');
+        }
+    });
+    
+    // Toggle between auto and custom mode
+    autoRadio.addEventListener('change', () => {
+        customInputs.classList.remove('active');
+        // Re-apply auto depth scale
+        const source = map.getSource('earthquakes');
+        if (source && source._data && source._data.features) {
+            updateDepthScale(source._data.features);
+        }
+    });
+    
+    customRadio.addEventListener('change', () => {
+        customInputs.classList.add('active');
+    });
+    
+    // Apply custom depth range
+    const applyCustomRange = () => {
+        if (!customRadio.checked) return;
+        
+        const min = parseInt(minInput.value);
+        const max = parseInt(maxInput.value);
+        
+        if (min >= max) {
+            alert('Min depth must be less than max depth');
+            return;
+        }
+        
+        // Update map colors
+        const colorStops = generateDepthColorStops(min, max);
+        map.setPaintProperty('eq-points', 'circle-color', colorStops);
+        
+        // Update legend labels
+        const labels = generateLegendLabels(min, max);
+        const legendLabels = document.querySelectorAll('.legend-labels span');
+        if (legendLabels.length === 4) {
+            legendLabels[0].textContent = labels[0];
+            legendLabels[1].textContent = labels[1];
+            legendLabels[2].textContent = labels[2];
+            legendLabels[3].textContent = labels[3];
+        }
+        
+        console.log(`🎨 Custom depth range: ${min}-${max} km`);
+    };
+    
+    // Apply when inputs change
+    minInput.addEventListener('change', applyCustomRange);
+    maxInput.addEventListener('change', applyCustomRange);
+    
+    // Reset to auto
+    resetBtn.addEventListener('click', () => {
+        autoRadio.checked = true;
+        customInputs.classList.remove('active');
+        const source = map.getSource('earthquakes');
+        if (source && source._data && source._data.features) {
+            updateDepthScale(source._data.features);
+        }
+        settingsPanel.classList.remove('active');
+    });
+}
+
+
+
 
 /* -------------------------------------------------------
    Catalog Switching API
@@ -173,6 +288,11 @@ window.switchCatalog = async function (catalogId) {
         // Update analytics with new catalog data
         if (window.updateAnalytics) {
             window.updateAnalytics(updated.features);
+        }
+        
+        // Auto-adjust depth scale
+        if (window.updateDepthScale) {
+            window.updateDepthScale(updated.features);
         }
     }
     hideLoading();
@@ -413,6 +533,12 @@ map.on('load', async () => {
     // Initialize analytics panel
     initAnalytics();
     updateAnalytics(initial.features);
+    
+    // Auto-adjust depth scale
+    updateDepthScale(initial.features);
+
+    // Initialize depth settings panel
+    initDepthSettings();
 });
 
 /* -------------------------------------------------------
