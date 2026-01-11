@@ -147,8 +147,8 @@ export async function loadEarthquakes(catalogId = 1, limit = 50000) {
                     horizontal_error: eq.horizontal_error_km,
                     vertical_error: eq.vertical_error_km,
                     origin_time: eq.origin_time,
-                    region: eq.region || 'N/A',
-                    time: new Date(eq.origin_time).toLocaleString()
+                    region: eq.region || 'N/A'
+                    // REMOVED: time: new Date(eq.origin_time).toLocaleString()
                 }
             }))
         };
@@ -447,8 +447,8 @@ function downloadAsGeoJSON(features) {
 
 function downloadAsCSV(features) {
     const headers = [
-        'evid','latitude','longitude','depth_km','magnitude',
-        'origin_time','region','nsta','gap','max_err'
+        'evid','latitude','longitude','depth_km','magnitude','mag_type',
+        'origin_time','region','nsta','gap','horizontal_error','vertical_error'
     ];
 
     let csv = headers.join(',') + '\n';
@@ -461,13 +461,15 @@ function downloadAsCSV(features) {
             p.id || '',
             lat.toFixed(4),
             lon.toFixed(4),
-            p.depth?.toFixed(2) || '',
-            p.mag ?? '',
+            p.depth?.toFixed(4) || '',  
+            p.mag?.toFixed(4) ?? '',    
+            p.mag_type || '',           
             p.origin_time || '',
             `"${p.region}"`,
             p.nsta ?? '',
             p.gap ?? '',
-            p.max_err ?? ''
+            p.horizontal_error?.toFixed(4) ?? '',  
+            p.vertical_error?.toFixed(4) ?? ''
         ].join(',') + '\n';
     });
 
