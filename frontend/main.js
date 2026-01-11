@@ -419,11 +419,21 @@ map.on('load', async () => {
    Export Functions
 ------------------------------------------------------- */
 window.downloadFilteredData = function (format) {
-    const features = map.queryRenderedFeatures({ layers: ['eq-points'] });
-    if (!features.length) {
-        alert('No earthquakes visible.');
+    const source = map.getSource('earthquakes');
+    if (!source || !source._data || !source._data.features) {
+        alert('No earthquake data loaded.');
         return;
     }
+    
+    const features = source._data.features;
+    
+    if (!features.length) {
+        alert('No earthquakes in current dataset.');
+        return;
+    }
+    
+    console.log(`📥 Exporting ${features.length} earthquakes...`);
+    
     if (format === 'geojson') downloadAsGeoJSON(features);
     if (format === 'csv') downloadAsCSV(features);
 };
