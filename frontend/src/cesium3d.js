@@ -325,7 +325,7 @@ window.resetFilters3D = function() {
     }
     const magSlider = document.getElementById('magnitude-slider-3d');
     if (magSlider.noUiSlider) {
-        magSlider.noUiSlider.set([0.0, 10.0]);
+        magSlider.noUiSlider.set([-2, 10.0]);
     }
     document.getElementById('start-date-3d').value = '';
     document.getElementById('end-date-3d').value = '';
@@ -347,7 +347,7 @@ window.showAllEvents3D = function() {
     }
     const magSlider = document.getElementById('magnitude-slider-3d');
     if (magSlider.noUiSlider) {
-        magSlider.noUiSlider.set([0.0, 10.0]);
+        magSlider.noUiSlider.set([-2, 10.0]);
     }
     document.getElementById('start-date-3d').value = '';
     document.getElementById('end-date-3d').value = '';
@@ -441,9 +441,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const magSlider = document.getElementById('magnitude-slider-3d');
     if (magSlider && window.noUiSlider) {
         noUiSlider.create(magSlider, {
-            start: [0.0, 10.0],
+            start: [-2, 10.0],
             connect: true,
-            range: { min: 0.0, max: 10.0 },
+            range: { min: -2, max: 10.0 },
             step: 0.1
         });
 

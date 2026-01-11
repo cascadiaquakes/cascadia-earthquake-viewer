@@ -105,7 +105,7 @@ function updateMagnitudeChart(earthquakes) {
         .map(eq => eq.properties.mag)
         .filter(mag => mag !== null && mag !== undefined);
     
-    const bins = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const bins = [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     const counts = new Array(bins.length - 1).fill(0);
     
     magnitudes.forEach(mag => {

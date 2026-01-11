@@ -4,7 +4,7 @@ import { getApiUrl } from './config.js';
 
 let currentFilters = {
     depth: [0, 100],
-    magnitude: [0, 10],
+    magnitude: [-2, 10],
     startDate: null,
     endDate: null,
     minLat: null,
@@ -44,9 +44,9 @@ function initMagnitudeSlider() {
     if (!slider) return;
     
     noUiSlider.create(slider, {
-        start: [0, 10],
+        start: [-2, 10],
         connect: true,
-        range: { min: 0, max: 10 },
+        range: { min: -2, max: 10 },
         step: 0.1
     });
     
@@ -132,7 +132,7 @@ async function applyFiltersToMap(map, filters) {
     });
     
     // Only add magnitude if NOT default range
-    if (filters.magnitude[0] > 0) {
+    if (filters.magnitude[0] > -2) {
         params.append('minMagnitude', filters.magnitude[0]);
     }
     if (filters.magnitude[1] < 10) {
@@ -261,7 +261,7 @@ function initButtons(map) {
             const magSlider = document.getElementById('magnitude-slider');
             
             if (depthSlider && depthSlider.noUiSlider) depthSlider.noUiSlider.set([0, 100]);
-            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([0, 10]);
+            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([-2, 10]);
             
             document.getElementById('start-date').value = '';
             document.getElementById('end-date').value = '';
@@ -272,7 +272,7 @@ function initButtons(map) {
             
             currentFilters = { 
                 depth: [0, 100], 
-                magnitude: [0, 10], 
+                magnitude: [-2, 10], 
                 startDate: null, 
                 endDate: null, 
                 minLat: null, 
@@ -318,7 +318,7 @@ function initButtons(map) {
             const magSlider = document.getElementById('magnitude-slider');
             
             if (depthSlider && depthSlider.noUiSlider) depthSlider.noUiSlider.set([0, 100]);
-            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([0, 10]);
+            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([-2, 10]);
             
             document.getElementById('start-date').value = '';
             document.getElementById('end-date').value = '';
@@ -329,7 +329,7 @@ function initButtons(map) {
             
             currentFilters = { 
                 depth: [0, 100], 
-                magnitude: [0, 10], 
+                magnitude: [-2, 10], 
                 startDate: null, 
                 endDate: null, 
                 minLat: null, 
