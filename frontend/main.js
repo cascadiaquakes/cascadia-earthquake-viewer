@@ -431,11 +431,15 @@ window.downloadFilteredData = function (format) {
 function downloadAsGeoJSON(features) {
     const geojson = {
         type: 'FeatureCollection',
-        features: features.map(f => ({
-            type: 'Feature',
-            geometry: f.geometry,
-            properties: f.properties
-        }))
+        features: features.map(f => {
+            // Destructure to exclude 'time' field
+            const { time, ...cleanProperties } = f.properties;
+            return {
+                type: 'Feature',
+                geometry: f.geometry,
+                properties: cleanProperties
+            };
+        })
     };
 
     const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
