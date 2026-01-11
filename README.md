@@ -25,16 +25,20 @@ The JupyterBook contains:
 
 ##  Catalogs Available in the Viewer
 
-The viewer currently supports **8 curated earthquake catalogs**, totaling **~746,000 events**, including:
+The viewer currently supports **10 curated earthquake catalogs**, totaling **~1.9 million events**, including:
 
-1. **Brenton et al. — Cascadia ML Catalog v1**  
-2. **Bostock et al. 2015 — LFEs (Southern Vancouver Island)**  
-3. **Hirao et al. 2025 — Mount St. Helens**  
-4. **Littel et al. 2024 — Queen Charlotte Triple Junction**  
-5. **Merrill et al. — Nootka Fault Zone**  
-6. **Morton et al. 2023 — Cascadia Subduction Zone**  
-7. **Shelly et al. 2025 — Southern Cascadia LFEs**  
-8. **Stone et al. — Offshore Cascadia**
+1. **Bostock et al. 2015 — LFEs (Southern Vancouver Island)** - 269K events
+2. **Plourde et al. 2015 — Southern Cascadia** - 6K events
+3. **Stone et al. 2018 — Offshore Cascadia** - 237 events
+4. **Wech 2021 — Cascadia Tremor** - 740K events
+5. **Merrill et al. 2022 — Nootka Fault Zone** - 92K events
+6. **Ducellier & Creager 2022 — Southern Cascadia** - 478K events
+7. **Morton et al. 2023 — Cascadia Subduction Zone** - 5K events
+8. **Littel et al. 2023 — Queen Charlotte Triple Junction** - 18K events
+9. **Shelly et al. 2025 — Southern Cascadia LFEs** - 61K events
+10. **Hirao et al. 2025 — Mount St. Helens** - 31K events
+
+All catalogs include peer-reviewed publication DOI links accessible via the web interface.
 
 ---
 
@@ -408,10 +412,20 @@ node scripts/import-earthquakes.js
 ## Credits
 
 **Developed by:** CRESCENT Dev Team (William, Loïc, Amanda) 
+
 **Funded by:** U.S. National Science Foundation  
 **Earthquake Data:** Pacific Northwest Seismic Network  
 **Basemap:** Esri World Imagery  
 **3D Engine:** Cesium  
+
+---
+
+
+---
+
+## Acknowledgments
+
+This project is supported by the National Science Foundation through the Cascadia Region Earthquake Science Center (CRESCENT). We thank the many researchers who have contributed earthquake catalogs and methodological advances that make this repository possible.  
 
 ---
 
@@ -431,4 +445,3 @@ For technical questions or issues:
 
 **Version:** v1.0 (demo)  
 **Last Updated:** December 2025
-
