@@ -118,50 +118,208 @@
             scrollbar-width: none;
         }
 
-        /* Footer for 3D */
+        /* =========================================================
+        3D FOOTER 
+        ========================================================= */
+
+        /* Footer container: centered legend */
         .footer-container {
-            position: absolute;
-            bottom: 25px;
+            position: fixed;
             left: 0;
             right: 0;
+            bottom: 18px;
             display: flex;
             justify-content: center;
             align-items: flex-end;
+            padding: 0 20px;
             pointer-events: none;
-            z-index: 90;
+            z-index: 120;
         }
 
+        /* Depth legend panel (center) */
+        .footer-container .legend-panel {
+            pointer-events: auto;
+            max-width: calc(100vw - 360px);
+        }
+
+        /* Right-side CRESCENT logo (pinned to viewport) */
         .logo-area-3d {
-            position: absolute;
-            right: 20px;
-            bottom: 0;
+            position: fixed;
+            right: 12px;
+            bottom: 18px;
             pointer-events: auto;
             text-align: right;
+            z-index: 130;
         }
 
+        /* Logo image sizing */
         .logo-area-3d img {
-            height: 45px;
+            height: 44px;
+            width: auto;
+            max-width: 180px;
+            object-fit: contain;
             opacity: 0.9;
+            display: block;
+            margin-left: auto;
         }
 
+        /* Subtitle under logo */
         .logo-sub-3d {
             font-size: 10px;
             color: rgba(255,255,255,0.8);
             text-shadow: 0 1px 2px rgba(0,0,0,0.8);
             margin-top: 2px;
+            white-space: nowrap;
         }
 
+        /* 3D "Zoom" label */
         .camera-status {
-            position: absolute;
-            bottom: 40px;
-            left: 20px;
+            position: fixed;
+            right: 12px;
+            bottom: 78px;
             padding: 4px 8px;
             font-size: 11px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #ffffff;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
             border-radius: 4px;
-            z-index: 100;
+            z-index: 130;
+            pointer-events: none;
         }
+
+        /* ---------- 3D LEGEND TOGGLE BUTTON ---------- */
+        .btn-legend-toggle-3d {
+            position: fixed;
+            right: 15px;
+            bottom: 165px;
+            z-index: 99999;
+            pointer-events: auto;
+
+            background: rgba(200, 240, 255, 0.15);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.30);
+            padding: 7px 10px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+
+            transition: transform 120ms ease, background 120ms ease, 
+                        border-color 120ms ease, box-shadow 120ms ease;
+        }
+
+        .btn-legend-toggle-3d:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.45);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+        }
+
+        .btn-legend-toggle-3d:active {
+            transform: scale(0.97);
+            box-shadow: none;
+        }
+
+        .btn-legend-toggle-3d.is-active {
+            background: rgba(255, 255, 255, 0.30);
+            border-color: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+        }
+
+        /* ---------- LEGEND PANEL TOGGLE STATES ---------- */
+        /* Target only the legend panel, not the logo */
+        #depth-legend-3d {
+            transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+        }
+
+        #depth-legend-3d.is-closed {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+
+        #depth-legend-3d.is-open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Responsive behavior */
+        @media (max-width: 780px) {
+            .footer-container { bottom: 70px; }
+        }
+
+        @media (max-width: 560px) {
+            .logo-sub-3d { display: none; }
+        }
+
+        @media (max-width: 360px) {
+            .logo-area-3d { display: none; }
+            .camera-status { display: none; }
+        }
+
+
+        /* =========================================================
+        3D LEGEND PANEL STYLING (here we must override/supplement style.css)
+        ========================================================= */
+
+        /* Legend panel container */
+        .footer-container .panel {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 10px 20px;
+            background: #ffffff;
+            border-radius: 100px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Legend title */
+        .footer-container .legend-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            padding-right: 12px;
+            border-right: 1px solid #eee;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        /* Gradient container - stacked vertically */
+        .footer-container .legend-gradient-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Gradient bar */
+        .footer-container .legend-gradient {
+            width: 120px;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(
+                to right,
+                #fbbf24 0%,
+                #f97316 50%,
+                #dc2626 100%
+            );
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.10);
+        }
+
+        /* Labels under gradient */
+        .footer-container .legend-labels {
+            width: 120px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+
+        
     </style>
 </head>
 <body>
@@ -196,14 +354,16 @@
             <div class="filter-group-clean">
                 <label class="label-clean catalog-label">Catalog</label>
                 <select id="catalog-select-3d" class="select-clean">
-                    <option value="1">Brenton et al. — Cascadia ML (279K)</option>
-                    <option value="2">Bostock et al. — LFE (269K)</option>
-                    <option value="4">Hirao et al. — Mt St Helens (31K)</option>
-                    <option value="5">Littel et al. — Queen Charlotte (18K)</option>
-                    <option value="6">Merrill et al. — Nootka Fault (92K)</option>
-                    <option value="7">Morton et al. — Cascadia Subduction (5K)</option>
-                    <option value="8">Shelly et al. — LFE (61K)</option>
-                    <option value="11">Stone et al. — Offshore (237)</option>
+                    <option value="2">Bostock et al. 2015 — LFE (269K)</option>
+                    <option value="12">Plourde et al. 2015 — Southern Cascadia (6K)</option>
+                    <option value="11">Stone et al. 2018 — Offshore (237)</option>
+                    <option value="16">Wech 2021 — Cascadia Tremor (740K)</option>
+                    <option value="6">Merrill et al. 2022 — Nootka Fault (92K)</option>
+                    <option value="15">Ducellier & Creager 2022 — Southern Cascadia (478K)</option>
+                    <option value="7">Morton et al. 2023 — Cascadia Subduction (5K)</option>
+                    <option value="5">Littel et al. 2023 — Queen Charlotte (18K)</option>
+                    <option value="8">Shelly et al. 2025 — LFE (61K)</option>
+                    <option value="4">Hirao et al. 2025 — Mt St Helens (31K)</option>
                 </select>
             </div>
 
@@ -292,22 +452,23 @@
             </div>
             <div class="export-hint">Downloads filtered earthquakes in current map view</div>
         </div>
-
-        <div class="glass-panel details-panel">
-            <div class="panel-header">Selected Event</div>
-            <div id="selected-empty-3d" class="empty-state">
-                Click on any earthquake to view details.
-            </div>
-            <div id="selected-content-3d" class="panel-content d-none"></div>
-        </div>
     </div>
 
+    <!-- 3D Legend Toggle Button -->
+    <button class="btn-legend-toggle-3d" id="toggle-legend-3d">Legend</button>
+
     <div class="footer-container">
-        <div class="panel legend-panel">
-            <div class="legend-title">Depth</div>
-            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0–20</div>
-            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20–40</div>
-            <div class="legend-item"><div class="dot" style="background: #dc2626;"></div> 40+ km</div>
+        <div class="panel legend-panel" id="depth-legend-3d">
+            <div class="legend-title">Depth (km)</div>
+            <div class="legend-gradient-container">
+                <div class="legend-gradient"></div>
+                <div class="legend-labels">
+                    <span>0</span>
+                    <span>20</span>
+                    <span>40</span>
+                    <span>60+</span>
+                </div>
+            </div>
         </div>
         <div class="logo-area-3d">
             <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT">
@@ -336,7 +497,33 @@
             document.getElementById('apply-filters-3d').addEventListener('click', () => {
                 if (window.applyFilters3D) window.applyFilters3D();
             });
+
+            // Legend toggle for 3D - target ONLY the legend panel, not the logo
+            const legendPanel = document.getElementById('depth-legend-3d');
+            const toggleBtn3d = document.getElementById('toggle-legend-3d');
+
+            if (legendPanel && toggleBtn3d) {
+                // Default state
+                if (window.innerWidth <= 760) {
+                    legendPanel.classList.add('is-closed');
+                } else {
+                    legendPanel.classList.add('is-open');
+                }
+
+                toggleBtn3d.addEventListener('click', () => {
+                    if (legendPanel.classList.contains('is-open')) {
+                        legendPanel.classList.remove('is-open');
+                        legendPanel.classList.add('is-closed');
+                        toggleBtn3d.classList.add('is-active');
+                    } else {
+                        legendPanel.classList.remove('is-closed');
+                        legendPanel.classList.add('is-open');
+                        toggleBtn3d.classList.remove('is-active');
+                    }
+                });
+            }
         });
+
     </script>
 
     <script type="module" src="/src/cesium3d.js"></script>

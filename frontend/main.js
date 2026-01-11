@@ -116,6 +116,13 @@ function updateCatalogMetadata(catalogId) {
 
 export async function loadEarthquakes(catalogId = 1, limit = 50000) {
     showLoading();
+    
+    // Close any open popups when loading new data
+    const existingPopups = document.getElementsByClassName('maplibregl-popup');
+    while (existingPopups.length > 0) {
+        existingPopups[0].remove();
+    }
+    
     try {
         const response = await fetch(
             getApiUrl(`/api/earthquakes?catalog=${catalogId}&limit=${limit}`)
@@ -223,11 +230,8 @@ map.on('load', async () => {
     
     // Load catalog metadata and initial earthquake data
     catalogsData = await loadCatalogs();
-    updateCatalogMetadata(1);
-    const initial = await loadEarthquakes(1, 50000);
-    if (!initial) return;
-
-    // Add earthquake data source with clustering
+    updateCatalogMetadata(2);
+    const initial = await loadEarthquakes(2, 50000);
     map.addSource('earthquakes', {
         type: 'geojson',
         data: initial,
@@ -277,7 +281,7 @@ map.on('load', async () => {
         paint: { 'text-color': '#ffffff' }
     });
 
-    // Add individual earthquake points (color by depth)
+    // Add individual earthquake points (color by depth, size by magnitude or default)
     map.addLayer({
         id: 'eq-points',
         type: 'circle',
@@ -292,13 +296,28 @@ map.on('load', async () => {
                 '#dc2626'        // Red: 40+ km
             ],
             'circle-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                4, 2.5,
-                10, 6
+                'case',
+                ['!=', ['get', 'mag'], null],  // If magnitude exists, scale by magnitude
+                [
+                    'interpolate',
+                    ['exponential', 0.5],
+                    ['get', 'mag'],
+                    -1, 2,
+                    0, 3,
+                    1, 4,
+                    2, 5,
+                    3, 7,
+                    4, 10,
+                    5, 14,
+                    6, 20,
+                    7, 28
+                ],
+                4  // Default 4px for LFEs/tremor without magnitude
             ],
-            'circle-opacity': 0.7
+            'circle-opacity': 0.7,
+            'circle-stroke-width': 0.5,
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-opacity': 0.5
         }
     });
 
@@ -313,44 +332,73 @@ map.on('load', async () => {
         });
     });
 
-    // Click individual point to show details
+    // Click individual point to show popup
     map.on('click', 'eq-points', e => {
-        const p = e.features[0].properties;
-        const content = document.getElementById('selected-content');
-        const empty = document.getElementById('selected-empty');
-
-        const date = new Date(p.origin_time);
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const feature = e.features[0];
+        const p = feature.properties;
+        const coords = feature.geometry.coordinates;
         
-        content.innerHTML = `
-            <div class="event-list">
-                <div class="event-row">
-                    <span class="row-label">Date</span>
-                    <span class="row-value">${dateStr}</span>
+        // Format date/time in GMT (UTC)
+        const date = new Date(p.origin_time);
+        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const timeStr = date.toISOString().split('T')[1].slice(0, 8); // HH:MM:SS UTC
+        
+        const popupHTML = `
+            <div style="font-family: Inter, sans-serif; min-width: 200px; padding: 4px;">
+                <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #0e7490;">
+                    View Event Details
                 </div>
-                <div class="event-row">
-                    <span class="row-label">Time</span>
-                    <span class="row-value">${timeStr}</span>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Date (UTC):</span>
+                        <span style="color: #334155; font-weight: 500;">${dateStr}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Time (UTC):</span>
+                        <span style="color: #334155; font-weight: 500;">${timeStr}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Latitude:</span>
+                        <span style="color: #334155; font-weight: 500;">${coords[1].toFixed(4)}°</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Longitude:</span>
+                        <span style="color: #334155; font-weight: 500;">${coords[0].toFixed(4)}°</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Depth:</span>
+                        <span style="color: #334155; font-weight: 500;">${p.depth.toFixed(1)} km</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Magnitude:</span>
+                        <span style="color: #334155; font-weight: 500;">${p.mag ? parseFloat(p.mag).toFixed(1) : 'N/A'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #0e7490; font-weight: 600;">Stations:</span>
+                        <span style="color: #334155; font-weight: 500;">${p.nsta ? p.nsta : 'N/A'}</span>
+                    </div>
                 </div>
-                <div class="event-row">
-                    <span class="row-label">Depth</span>
-                    <span class="row-value">${p.depth.toFixed(1)} km</span>
-                </div>
-                <div class="event-row">
-                    <span class="row-label">Magnitude</span>
-                    <span class="row-value">${p.mag ? parseFloat(p.mag).toFixed(1) : 'No magnitude'}</span>
-                </div>
-                <div class="event-row">
-                    <span class="row-label">Stations</span>
-                    <span class="row-value">${p.nsta ? p.nsta : 'No data'}</span>
-                </div>
-                <div class="event-id-final">${p.id}</div>
             </div>
         `;
-
-        content.classList.remove('d-none');
-        empty.classList.add('d-none');
+        
+        // Remove any existing popups before adding new one
+        const existingPopups = document.getElementsByClassName('maplibregl-popup');
+        if (existingPopups.length) {
+            while(existingPopups[0]) {
+                existingPopups[0].remove();
+            }
+        }
+        
+        new maplibregl.Popup({ 
+            closeButton: true,          // Show X button
+            closeOnClick: true,         // Close when clicking map
+            closeOnMove: false,         // Don't close when panning
+            maxWidth: '280px',          // Narrower width or usee this to edit teh size
+            className: 'custom-popup'
+        })
+            .setLngLat(coords)
+            .setHTML(popupHTML)
+            .addTo(map);
     });
 
     // Change cursor on hover over clusters and points
@@ -429,3 +477,4 @@ function downloadAsCSV(features) {
     a.download = `cascadia-earthquakes-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
 }
+

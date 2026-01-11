@@ -2,6 +2,7 @@ let timelineChart = null;
 let magnitudeChart = null;
 let depthChart = null;
 let depthTimeChart = null;
+let magnitudeTimeChart = null;
 
 export function initAnalytics() {
     const showBtn = document.getElementById('show-analytics');
@@ -39,9 +40,11 @@ export function updateAnalytics(earthquakes) {
     
     updateTimelineChart(earthquakes);
     updateMagnitudeChart(earthquakes);
+    updateMagnitudeTimeChart(earthquakes);
     updateDepthChart(earthquakes);
     updateDepthTimeChart(earthquakes);
 }
+
 
 function updateTimelineChart(earthquakes) {
     const yearCounts = {};
@@ -72,7 +75,9 @@ function updateTimelineChart(earthquakes) {
                 data: counts,
                 backgroundColor: 'rgba(14, 116, 144, 0.7)',
                 borderColor: 'rgba(14, 116, 144, 1)',
-                borderWidth: 1
+                borderWidth: 1,
+                barPercentage: 0.8,  // Makes bars narrower when few years
+                categoryPercentage: 0.9
             }]
         },
         options: {
@@ -88,7 +93,7 @@ function updateTimelineChart(earthquakes) {
                 },
                 x: {
                     type: 'category',
-                    title: { display: true, text: 'Year' }
+                    title: { display: true, text: 'Time' }  // CHANGED from "Year"
                 }
             }
         }
@@ -154,6 +159,72 @@ function updateMagnitudeChart(earthquakes) {
     });
 }
 
+function updateMagnitudeTimeChart(earthquakes) {
+    // Filter events with valid magnitude and time
+    const data = earthquakes
+        .filter(eq => eq.properties.mag !== null && eq.properties.mag !== undefined && eq.properties.origin_time)
+        .map(eq => ({
+            x: new Date(eq.properties.origin_time),
+            y: eq.properties.mag
+        }));
+
+    const canvas = document.getElementById('chart-magnitude-time');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    if (magnitudeTimeChart) {
+        magnitudeTimeChart.destroy();
+    }
+
+    magnitudeTimeChart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                data: data,
+                backgroundColor: 'rgba(251, 191, 36, 0.4)',
+                borderColor: 'rgba(251, 191, 36, 0.6)',
+                pointRadius: 2,
+                pointHoverRadius: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const date = ctx.raw.x.toISOString().slice(0, 10);
+                            return `Date: ${date}, Magnitude: ${ctx.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'year',
+                        tooltipFormat: 'yyyy-MM-dd'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Magnitude'
+                    }
+                }
+            }
+        }
+    });
+}
+
 function updateDepthChart(earthquakes) {
     const depths = earthquakes.map(eq => eq.properties.depth);
     
@@ -211,35 +282,14 @@ function updateDepthChart(earthquakes) {
     });
 }
 
-function updateDepthTimeChart(earthquakes, options = {}) {
-    const {
-        catalogId = null,
-        depthSplitKm = 2,
-        reservoirDepthKm = null
-    } = options;
-
-    const shallow = [];
-    const deep = [];
-
-    earthquakes.forEach(eq => {
-        const time = eq.properties?.origin_time;
-        const depth = eq.properties?.depth;
-        const catId = eq.properties?.catalog_id;
-
-        if (!time || depth == null) return;
-        if (catalogId !== null && catId !== catalogId) return;
-
-        const point = {
-            x: new Date(time),
-            y: depth
-        };
-
-        if (depth <= depthSplitKm) {
-            shallow.push(point);
-        } else {
-            deep.push(point);
-        }
-    });
+function updateDepthTimeChart(earthquakes) {
+    // Single dataset, no shallow/deep split
+    const data = earthquakes
+        .filter(eq => eq.properties.origin_time && eq.properties.depth)
+        .map(eq => ({
+            x: new Date(eq.properties.origin_time),
+            y: eq.properties.depth
+        }));
 
     const canvas = document.getElementById('chart-depth-time');
     if (!canvas) return;
@@ -253,39 +303,24 @@ function updateDepthTimeChart(earthquakes, options = {}) {
     depthTimeChart = new Chart(ctx, {
         type: 'scatter',
         data: {
-            datasets: [
-                {
-                    label: `Shallow (≤ ${depthSplitKm} km BSL)`,
-                    data: shallow,
-                    backgroundColor: 'rgba(234, 88, 12, 0.35)',
-                    pointRadius: 2
-                },
-                {
-                    label: `Deep (> ${depthSplitKm} km BSL)`,
-                    data: deep,
-                    backgroundColor: 'rgba(37, 99, 235, 0.35)',
-                    pointRadius: 2
-                },
-                ...(reservoirDepthKm !== null ? [{
-                    label: 'Estimated magma reservoir top',
-                    data: shallow.map(p => ({ x: p.x, y: reservoirDepthKm })),
-                    type: 'line',
-                    borderColor: 'rgba(220, 38, 38, 0.7)',
-                    borderDash: [6, 4],
-                    pointRadius: 0
-                }] : [])
-            ]
+            datasets: [{
+                data: data,
+                backgroundColor: 'rgba(14, 116, 144, 0.4)',
+                borderColor: 'rgba(14, 116, 144, 0.6)',
+                pointRadius: 2,
+                pointHoverRadius: 3
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             plugins: {
-                legend: { display: true },
+                legend: { display: false },  // REMOVED shallow/deep legend
                 tooltip: {
                     callbacks: {
                         label: ctx => {
-                            const d = ctx.parsed;
-                            return `Date: ${ctx.raw.x.toISOString().slice(0,10)}, Depth: ${d.y.toFixed(2)} km BSL`;
+                            const date = ctx.raw.x.toISOString().slice(0,10);
+                            return `Date: ${date}, Depth: ${ctx.parsed.y.toFixed(2)} km`;
                         }
                     }
                 }
@@ -306,7 +341,7 @@ function updateDepthTimeChart(earthquakes, options = {}) {
                     reverse: true,
                     title: {
                         display: true,
-                        text: 'Depth below sea level (km)'
+                        text: 'Depth (km)'  // CHANGED from "Depth below sea level"
                     }
                 }
             }

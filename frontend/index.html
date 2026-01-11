@@ -31,11 +31,11 @@
     
     <header class="app-header">
         <div class="header-left">
-            <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT">
+            <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT" class="crescent-logo">
             <img src="/src/resources/USNSF_Logo.png" alt="NSF" class="nsf-logo">
         </div>
         
-        <div class="header-center">
+        <div class="header-center" style="font-size: 30px; font-weight: 600;">
             Cascadia Earthquake Catalog Viewer
         </div>
         
@@ -57,14 +57,16 @@
             <div class="filter-group-clean">
                 <label class="label-clean catalog-label">Catalog</label>
                 <select id="catalog-select" class="select-clean">
-                    <option value="1">Brenton et al. — Cascadia ML (279K)</option>
-                    <option value="2">Bostock et al. — LFE (269K)</option>
-                    <option value="4">Hirao et al. — Mt St Helens (31K)</option>
-                    <option value="5">Littel et al. — Queen Charlotte (18K)</option>
-                    <option value="6">Merrill et al. — Nootka Fault (92K)</option>
-                    <option value="7">Morton et al. — Cascadia Subduction (5K)</option>
-                    <option value="8">Shelly et al. — LFE (61K)</option>
-                    <option value="11">Stone et al. — Offshore (237)</option>
+                    <option value="2">Bostock et al. 2015 — LFE (269K)</option>
+                    <option value="12">Plourde et al. 2015 — Southern Cascadia (6K)</option>
+                    <option value="11">Stone et al. 2018 — Offshore (237)</option>
+                    <option value="16">Wech 2021 — Cascadia Tremor (740K)</option>
+                    <option value="6">Merrill et al. 2022 — Nootka Fault (92K)</option>
+                    <option value="15">Ducellier & Creager 2022 — Southern Cascadia (478K)</option>
+                    <option value="7">Morton et al. 2023 — Cascadia Subduction (5K)</option>
+                    <option value="5">Littel et al. 2023 — Queen Charlotte (18K)</option>
+                    <option value="8">Shelly et al. 2025 — LFE (61K)</option>
+                    <option value="4">Hirao et al. 2025 — Mt St Helens (31K)</option>
                 </select>
             </div>
             
@@ -194,22 +196,23 @@
             <div class="export-hint">Downloads filtered earthquakes in current map view</div>
         </div>
 
-        <div class="glass-panel details-panel">
-            <div class="panel-header">Selected Event</div>
-            <div id="selected-empty" class="empty-state">
-                Click on any earthquake circle to view details.
-            </div>
-            <div id="selected-content" class="panel-content d-none"></div>
-        </div>
     </div>
 
-    <div class="footer-container">
-        <div class="panel legend-panel">
-            <div class="legend-title">Depth</div>
-            <div class="legend-item"><div class="dot" style="background: #fbbf24;"></div> 0–20</div>
-            <div class="legend-item"><div class="dot" style="background: #f97316;"></div> 20–40</div>
-            <div class="legend-item"><div class="dot" style="background: #dc2626;"></div> 40+ km</div>
+    <div class="footer-container" id="depth-legend">
+    <div class="panel legend-panel">
+        <div class="legend-title">Depth (km)</div>
+
+        <div class="legend-gradient-container">
+        <div class="legend-gradient"></div>
+
+        <div class="legend-labels">
+            <span>0</span>
+            <span>20</span>
+            <span>40</span>
+            <span>60+</span>
         </div>
+        </div>
+    </div>
     </div>
 
     <!-- Analytics Panel -->
@@ -221,13 +224,18 @@
         
         <div class="analytics-content">
             <div class="chart-container">
-                <h4 class="chart-title">Event Rate Over Time</h4>
+                <h4 class="chart-title">Event Rate vs Time</h4>
                 <canvas id="chart-timeline"></canvas>
             </div>
             
             <div class="chart-container">
                 <h4 class="chart-title">Magnitude Distribution</h4>
                 <canvas id="chart-magnitude"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h4 class="chart-title">Magnitude vs Time</h4>
+                <canvas id="chart-magnitude-time"></canvas>
             </div>
             
             <div class="chart-container">
@@ -236,19 +244,69 @@
             </div>
             
             <div class="chart-container">
-                <h4 class="chart-title">Depth Over Time</h4>
+                <h4 class="chart-title">Depth vs Time</h4>
                 <canvas id="chart-depth-time"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Analytics Toggle Button -->
-    <button class="btn-show-analytics" id="show-analytics">
-        📊 Show Analytics
-    </button>
+<!-- Analytics Toggle Button -->
+<button class="btn-legend-toggle" id="toggle-legend">Legend</button>
 
-    <div class="analytics-overlay" id="analytics-overlay"></div>
-    <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
-    <script type="module" src="/main.js"></script>
+<button class="btn-show-analytics" id="show-analytics">
+  📊 Show Analytics
+</button>
+
+<div class="analytics-overlay" id="analytics-overlay"></div>
+
+<!-- ===== Depth Legend Toggle Logic ===== -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const legend = document.getElementById("depth-legend");
+    const toggleBtn = document.getElementById("toggle-legend");
+
+    console.log("🔍 Legend element:", legend);
+    console.log("🔍 Toggle button:", toggleBtn);
+
+    if (!legend || !toggleBtn) {
+      console.error("❌ Legend or button not found!");
+      return;
+    }
+
+    // Default state - ONLY add one class
+    if (window.innerWidth <= 760) {
+      legend.classList.remove("is-open");
+      legend.classList.add("is-closed");
+      console.log("📱 Mobile: Starting closed");
+    } else {
+      legend.classList.remove("is-closed");
+      legend.classList.add("is-open");
+      console.log("🖥️ Desktop: Starting open");
+    }
+
+    toggleBtn.addEventListener("click", () => {
+      console.log("🖱️ Toggle button clicked!");
+      console.log("Before toggle - classes:", legend.className);
+      
+      // Proper toggle: remove one, add the other
+      if (legend.classList.contains("is-open")) {
+        legend.classList.remove("is-open");
+        legend.classList.add("is-closed");
+        toggleBtn.classList.add("is-active");
+      } else {
+        legend.classList.remove("is-closed");
+        legend.classList.add("is-open");
+        toggleBtn.classList.remove("is-active");
+      }
+      
+      console.log("After toggle - classes:", legend.className);
+    });
+  });
+</script>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
+<script type="module" src="/main.js"></script>
 </body>
 </html>

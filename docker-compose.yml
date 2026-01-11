@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 services:
   postgis-eq:
     image: postgis/postgis:16-3.4
@@ -55,3 +56,56 @@ volumes:
 networks:
   pgnet:
     driver: bridge
+=======
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    networks:
+      - eq-viewer-net
+    # This healthcheck ensures the database is fully ready before other services start.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gis"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  martin:
+    image: ghcr.io/maplibre/martin:latest
+    depends_on:
+      # This tells Martin to wait until the postgis service is healthy.
+      postgis:
+        condition: service_healthy
+    ports:
+      - "${MARTIN_PORT}:3000"
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgis/${POSTGRES_DB}"
+      MARTIN_SCHEMAS: landslides,public
+    command: ["--webui", "enable-for-all"]
+    networks:
+      - eq-viewer-net
+
+  web:
+    image: nginx:alpine
+    depends_on: [martin]
+    ports:
+      - "8081:80"
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+    networks:
+      - eq-viewer-net
+
+networks:
+  eq-viewer-net:
+
+volumes:
+  pgdata:
+>>>>>>> 7fe243ab3935f781518ab69caf6a5cf9d625a67d

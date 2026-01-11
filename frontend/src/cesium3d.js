@@ -15,8 +15,8 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
     animation: false,
     timeline: false,
     fullscreenButton: true,
-    infoBox: false,  // Disabled
-    selectionIndicator: false,  // Disabled
+    infoBox: false,
+    selectionIndicator: false,  
     requestRenderMode: true,
     maximumRenderTimeChange: Infinity
 });
@@ -159,9 +159,16 @@ function hideLoading() {
 /* Load earthquakes from API */
 async function loadEarthquakes(filters = {}) {
     showLoading();
+    
+    // Close any open popup when loading new data
+    const existingPopup = document.querySelector('.cesium-popup-close');
+    if (existingPopup && existingPopup.parentElement) {
+        existingPopup.parentElement.remove();
+    }
+    
     try {
         const params = new URLSearchParams({
-            catalog: filters.catalog || 1,
+            catalog: filters.catalog || 2,
             limit: 15000  // Reduced for performance
         });
 
@@ -311,7 +318,7 @@ window.applyFilters3D = function() {
 
 /* Reset filters */
 window.resetFilters3D = function() {
-    document.getElementById('catalog-select-3d').value = 1;
+    document.getElementById('catalog-select-3d').value = 2;
     const depthSlider = document.getElementById('depth-slider-3d');
     if (depthSlider.noUiSlider) {
         depthSlider.noUiSlider.set([0, 100]);
@@ -328,7 +335,7 @@ window.resetFilters3D = function() {
     document.getElementById('max-lon-3d').value = '';
     
     clearSpatialBoundary();
-    loadEarthquakes({ catalog: 1 });
+    loadEarthquakes({ catalog: 2 });
 };
 
 /* Show all events */
@@ -462,57 +469,119 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/* Click handler for earthquake points */
+/* Click handler */
+let currentPopup = null;
+
 const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 handler.setInputAction((click) => {
+    // Remove existing popup safely
+    if (currentPopup && document.body.contains(currentPopup)) {
+        document.body.removeChild(currentPopup);
+    }
+    currentPopup = null;
+    
     const pickedObject = viewer.scene.pick(click.position);
     
-    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.id.startsWith('earthquake-')) {
-        const entity = pickedObject.id;
-        const p = entity.properties;
+    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.id) {
+        const idString = pickedObject.id.id.toString();
         
-        const content = document.getElementById('selected-content-3d');
-        const empty = document.getElementById('selected-empty-3d');
-
-        const date = new Date(p.origin_time._value);
-        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        
-        content.innerHTML = `
-            <div class="event-list">
-                <div class="event-row">
-                    <span class="row-label">Date</span>
-                    <span class="row-value">${dateStr}</span>
+        if (idString.startsWith('earthquake-')) {
+            const entity = pickedObject.id;
+            const p = entity.properties;
+            
+            // Get cartesian position
+            const cartesian = entity.position.getValue(Cesium.JulianDate.now());
+            
+            // Get lat/lon for display
+            const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+            const longitude = Cesium.Math.toDegrees(cartographic.longitude);
+            const latitude = Cesium.Math.toDegrees(cartographic.latitude);
+            
+            // Format date/time in UTC
+            const date = new Date(p.origin_time._value);
+            const dateStr = date.toISOString().split('T')[0];
+            const timeStr = date.toISOString().split('T')[1].slice(0, 8);
+            
+            // Use click position directly
+            const x = click.position.x;
+            const y = click.position.y;
+            
+            // Create popup
+            currentPopup = document.createElement('div');
+            currentPopup.style.cssText = `
+                position: fixed;
+                left: ${x + 15}px;
+                top: ${y - 200}px;
+                z-index: 999999;
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(12px);
+                border-radius: 16px;
+                padding: 14px 16px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.8);
+                max-width: 280px;
+                font-family: Inter, sans-serif;
+                pointer-events: auto;
+            `;
+            
+            currentPopup.innerHTML = `
+                <button class="cesium-popup-close" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; font-size: 24px; color: #94a3b8; cursor: pointer; padding: 0; width: 24px; height: 24px; line-height: 1; border-radius: 6px; transition: all 0.2s;">×</button>
+                <div style="min-width: 200px; padding: 4px;">
+                    <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #0e7490;">
+                        View Event Details
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Date (UTC):</span>
+                            <span style="color: #334155; font-weight: 500;">${dateStr}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Time (UTC):</span>
+                            <span style="color: #334155; font-weight: 500;">${timeStr}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Latitude:</span>
+                            <span style="color: #334155; font-weight: 500;">${latitude.toFixed(4)}°</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Longitude:</span>
+                            <span style="color: #334155; font-weight: 500;">${longitude.toFixed(4)}°</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Depth:</span>
+                            <span style="color: #334155; font-weight: 500;">${p.depth._value.toFixed(1)} km</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Magnitude:</span>
+                            <span style="color: #334155; font-weight: 500;">${p.magnitude._value ? parseFloat(p.magnitude._value).toFixed(1) : 'N/A'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Stations:</span>
+                            <span style="color: #334155; font-weight: 500;">${p.nsta._value || 'N/A'}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="event-row">
-                    <span class="row-label">Time</span>
-                    <span class="row-value">${timeStr}</span>
-                </div>
-                <div class="event-row">
-                    <span class="row-label">Depth</span>
-                    <span class="row-value">${p.depth._value.toFixed(1)} km</span>
-                </div>
-                <div class="event-row">
-                    <span class="row-label">Magnitude</span>
-                    <span class="row-value">${p.magnitude._value ? parseFloat(p.magnitude._value).toFixed(1) : 'No magnitude'}</span>
-                </div>
-                <div class="event-row">
-                    <span class="row-label">Stations</span>
-                    <span class="row-value">${p.nsta._value || 'No data'}</span>
-                </div>
-                <div class="event-id-final">${p.evid._value}</div>
-            </div>
-        `;
-
-        content.classList.remove('d-none');
-        empty.classList.add('d-none');
+            `;
+            
+            // Add close button handler
+            const closeBtn = currentPopup.querySelector('.cesium-popup-close');
+            closeBtn.onclick = () => {
+                if (currentPopup && document.body.contains(currentPopup)) {
+                    document.body.removeChild(currentPopup);
+                }
+                currentPopup = null;
+            };
+            
+            document.body.appendChild(currentPopup);
+        }
     }
 }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 
 
+
 // Initialize
 addCascadiaBoundary();
-loadEarthquakes({ catalog: 1 });
+loadEarthquakes({ catalog: 2 });
 
 export { viewer, loadEarthquakes };
