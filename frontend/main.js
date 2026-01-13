@@ -4,6 +4,9 @@ import { initFilters } from './src/filters.js';
 import { initAnalytics, updateAnalytics } from './src/analytics.js';
 import { getApiUrl } from './src/config.js';
 import { calculateDepthRange, generateDepthColorStops, generateLegendLabels } from './src/depthScale.js';
+import { LayersControl } from './src/controls/LayersControl.js';
+import { BASEMAPS } from './src/mapStyles.js';
+
 
 /* Show/hide loading indicator */
 export function showLoading() {
@@ -46,7 +49,7 @@ const map = new maplibregl.Map({
 });
 
 
-/* Expose map instance for cross-module UI coordination (analytics panel, scroll locking) */
+/* Expose map instance for cross-module UI coordination (analytics panel,, scroll locking) */
 window.map = map;
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -115,6 +118,121 @@ function updateCatalogMetadata(catalogId) {
     document.getElementById('catalog-velocity').textContent = metadata.velocity_model || '—';
 }
 
+
+/* -------------------------------------------------------
+   Map Style Switching
+------------------------------------------------------- */
+let currentEarthquakeData = null;
+
+window.switchMapStyle = function(basemapKey, basemapConfig) {
+    console.log(`🔄 Switching to ${basemapKey}...`);
+    
+    const newStyle = basemapConfig.style;
+    map.setStyle(newStyle);
+    
+    // Simple: just wait for idle state
+    map.once('idle', () => {
+        console.log(`🎨 Map is ready: ${basemapKey}`);
+        
+        // Re-add Cascadia boundary
+        map.addSource('cascadia-boundary', {
+            type: 'geojson',
+            data: {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [[
+                        [-130, 39], [-116, 39], [-116, 52], [-130, 52], [-130, 39]
+                    ]]
+                }
+            }
+        });
+        
+        map.addLayer({
+            id: 'cascadia-line',
+            type: 'line',
+            source: 'cascadia-boundary',
+            paint: {
+                'line-color': '#00FFFF',
+                'line-width': 1.5,
+                'line-opacity': 0.8
+            }
+        });
+        
+        // Re-add earthquakes
+        if (currentEarthquakeData) {
+            map.addSource('earthquakes', {
+                type: 'geojson',
+                data: currentEarthquakeData,
+                cluster: true,
+                clusterMaxZoom: 5,
+                clusterRadius: 30
+            });
+
+            map.addLayer({
+                id: 'eq-clusters',
+                type: 'circle',
+                source: 'earthquakes',
+                filter: ['has', 'point_count'],
+                paint: {
+                    'circle-color': ['step', ['get', 'point_count'], '#51bbd6', 100, '#3b9fc4', 750, '#2a7db3'],
+                    'circle-radius': ['step', ['get', 'point_count'], 20, 100, 30, 750, 40],
+                    'circle-opacity': 0.85,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#ffffff'
+                }
+            });
+
+            map.addLayer({
+                id: 'eq-cluster-count',
+                type: 'symbol',
+                source: 'earthquakes',
+                filter: ['has', 'point_count'],
+                layout: {
+                    'text-field': '{point_count_abbreviated}',
+                    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                    'text-size': 12
+                },
+                paint: { 'text-color': '#ffffff' }
+            });
+
+            const depthRange = window.currentDepthRange || { min: 0, max: 60 };
+            const colorStops = generateDepthColorStops(depthRange.min, depthRange.max);
+
+            map.addLayer({
+                id: 'eq-points',
+                type: 'circle',
+                source: 'earthquakes',
+                filter: ['!', ['has', 'point_count']],
+                paint: {
+                    'circle-color': colorStops,
+                    'circle-radius': [
+                        'case',
+                        ['!=', ['get', 'mag'], null],
+                        ['interpolate', ['exponential', 0.5], ['get', 'mag'], -1, 2, 0, 3, 1, 4, 2, 5, 3, 7, 4, 10, 5, 14, 6, 20, 7, 28],
+                        4
+                    ],
+                    'circle-opacity': 0.7,
+                    'circle-stroke-width': 0.5,
+                    'circle-stroke-color': '#ffffff',
+                    'circle-stroke-opacity': 0.5
+                }
+            });
+
+            console.log(`✅ Earthquakes shown (${currentEarthquakeData.features.length} events)`);
+        } else {
+            console.warn('⚠️ No earthquake data to restore');
+        }
+        
+        console.log(`✅ ${basemapKey} ready`);
+    });
+};
+
+
+
+
+
+
 export async function loadEarthquakes(catalogId = 1, limit = 50000) {
     showLoading();
     
@@ -182,7 +300,7 @@ function updateDepthScale(features) {
         legendLabels[3].textContent = labels[3];
     }
     
-    // Store current range for settings panel (we'll add this later)
+    // Store current range for settings panel
     window.currentDepthRange = depthRange;
 }
 
@@ -254,7 +372,7 @@ function initDepthSettings() {
             legendLabels[3].textContent = labels[3];
         }
         
-        console.log(`🎨 Custom depth range: ${min}-${max} km`);
+        console.log(`Custom depth range: ${min}-${max} km`);
     };
     
     // Apply when inputs change
@@ -282,6 +400,7 @@ function initDepthSettings() {
 window.switchCatalog = async function (catalogId) {
     showLoading();
     const updated = await loadEarthquakes(Number(catalogId), 50000);
+    currentEarthquakeData = updated;
     if (updated && map.getSource('earthquakes')) {
         map.getSource('earthquakes').setData(updated);
         
@@ -352,6 +471,7 @@ map.on('load', async () => {
     catalogsData = await loadCatalogs();
     updateCatalogMetadata(2);
     const initial = await loadEarthquakes(2, 50000);
+    currentEarthquakeData = initial;
     map.addSource('earthquakes', {
         type: 'geojson',
         data: initial,
@@ -539,7 +659,11 @@ map.on('load', async () => {
 
     // Initialize depth settings panel
     initDepthSettings();
+
+    // Add layers control (TOP RIGHT)
+    map.addControl(new LayersControl(), 'top-right');
 });
+
 
 /* -------------------------------------------------------
    Export Functions

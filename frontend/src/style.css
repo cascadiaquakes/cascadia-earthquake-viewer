@@ -1795,3 +1795,92 @@ details[open].catalog-info-section .catalog-info-header::before {
   border-top-color: rgba(255, 255, 255, 0.98) !important;
   border-bottom-color: rgba(255, 255, 255, 0.98) !important;
 }
+
+
+.layers-panel {
+  position: absolute;
+  right: 44px;
+  top: 0;
+  background: white;
+  padding: 10px 12px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  font-size: 13px;
+  min-width: 160px;
+  z-index: 999;
+}
+
+.layers-section {
+  margin-bottom: 8px;
+}
+
+.layers-section label {
+  display: block;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+/* Layers Control Panel */
+.layers-panel {
+  position: absolute;
+  top: 0;
+  right: 50px;
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+}
+
+.layers-section {
+  margin-bottom: 8px;
+}
+
+.layers-section:last-child {
+  margin-bottom: 0;
+}
+
+.layers-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0b4a53;
+  margin-bottom: 8px;
+}
+
+.basemap-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #334155;
+  transition: background 0.2s;
+}
+
+.basemap-item:hover {
+  background: rgba(14, 116, 144, 0.1);
+}
+
+.basemap-item input[type="radio"],
+.basemap-item input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #0e7490;
+}
+
+.layers-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+}
+
+/* Style the button icon */
+.maplibregl-ctrl-group button svg {
+  vertical-align: middle;
+}
+
+
+
