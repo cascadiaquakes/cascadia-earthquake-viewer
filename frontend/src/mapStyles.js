@@ -2,7 +2,7 @@
 
 export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY;
 
-// Raster (satellite imagery) — your current Esri one
+// Raster (satellite imagery) — current Esri 
 export const BASEMAPS = {
   satellite: {
     label: "Satellite",
