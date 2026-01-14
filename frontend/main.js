@@ -159,6 +159,41 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
             }
         });
         
+        // Click on Cascadia boundary to show info
+    map.on('click', 'cascadia-line', (e) => {
+        const coords = e.lngLat;
+        
+        const popupHTML = `
+            <div style="font-family: Inter, sans-serif; padding: 8px;">
+                <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 6px;">
+                    CRESCENT Reporting Boundary
+                </div>
+                <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                    Events may occur beyond this region
+                </div>
+            </div>
+        `;
+        
+        new maplibregl.Popup({ 
+            closeButton: false,
+            closeOnClick: true,
+            maxWidth: '250px'
+        })
+            .setLngLat(coords)
+            .setHTML(popupHTML)
+            .addTo(map);
+    });
+    
+    // Cursor pointer on boundary hover
+    map.on('mouseenter', 'cascadia-line', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', 'cascadia-line', () => {
+        map.getCanvas().style.cursor = '';
+    });
+
+        
         // Re-add earthquakes
         if (currentEarthquakeData) {
             map.addSource('earthquakes', {
@@ -205,7 +240,12 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
                 source: 'earthquakes',
                 filter: ['!', ['has', 'point_count']],
                 paint: {
-                    'circle-color': colorStops,
+                    'circle-color': [
+                        'case',
+                        ['!=', ['get', 'depth'], null],
+                        colorStops,
+                        '#999999'  // Gray for null depth
+                    ],
                     'circle-radius': [
                         'case',
                         ['!=', ['get', 'mag'], null],
@@ -466,6 +506,42 @@ map.on('load', async () => {
             'line-opacity': 0.8
         }
     });
+
+
+    // Click on Cascadia boundary to show info
+    map.on('click', 'cascadia-line', (e) => {
+        const coords = e.lngLat;
+        
+        const popupHTML = `
+            <div style="font-family: Inter, sans-serif; padding: 8px;">
+                <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 6px;">
+                    CRESCENT Reporting Boundary
+                </div>
+                <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                    Events may occur beyond this region
+                </div>
+            </div>
+        `;
+        
+        new maplibregl.Popup({ 
+            closeButton: false,
+            closeOnClick: true,
+            maxWidth: '250px'
+        })
+            .setLngLat(coords)
+            .setHTML(popupHTML)
+            .addTo(map);
+    });
+    
+    // Cursor pointer on boundary hover
+    map.on('mouseenter', 'cascadia-line', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', 'cascadia-line', () => {
+        map.getCanvas().style.cursor = '';
+    });
+
     
     // Load catalog metadata and initial earthquake data
     catalogsData = await loadCatalogs();
@@ -529,30 +605,22 @@ map.on('load', async () => {
         filter: ['!', ['has', 'point_count']],
         paint: {
             'circle-color': [
-                'step',
-                ['get', 'depth'],
-                '#fbbf24', 20,   // Yellow: 0-20km
-                '#f97316', 40,   // Orange: 20-40km
-                '#dc2626'        // Red: 40+ km
+                'case',
+                ['!=', ['get', 'depth'], null],
+                [
+                    'step',
+                    ['get', 'depth'],
+                    '#fbbf24', 20,   // Yellow: 0-20km
+                    '#f97316', 40,   // Orange: 20-40km
+                    '#dc2626'        // Red: 40+ km
+                ],
+                '#999999'  // Gray for null depth
             ],
             'circle-radius': [
                 'case',
-                ['!=', ['get', 'mag'], null],  // If magnitude exists, scale by magnitude
-                [
-                    'interpolate',
-                    ['exponential', 0.5],
-                    ['get', 'mag'],
-                    -1, 2,
-                    0, 3,
-                    1, 4,
-                    2, 5,
-                    3, 7,
-                    4, 10,
-                    5, 14,
-                    6, 20,
-                    7, 28
-                ],
-                4  // Default 4px for LFEs/tremor without magnitude
+                ['!=', ['get', 'mag'], null],
+                ['interpolate', ['exponential', 0.5], ['get', 'mag'], -1, 2, 0, 3, 1, 4, 2, 5, 3, 7, 4, 10, 5, 14, 6, 20, 7, 28],
+                4
             ],
             'circle-opacity': 0.7,
             'circle-stroke-width': 0.5,

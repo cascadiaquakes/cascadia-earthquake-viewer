@@ -1413,31 +1413,58 @@ details[open].catalog-info-section .catalog-info-header::before {
 }
 
 /* ===================== SHOW ANALYTICS BUTTON ===================== */
+.btn-show-analytics{
+  position: fixed;
+  bottom: 40px;
+  right: 24px;
+  z-index: 950;
 
-.btn-show-analytics {
-    position: fixed;
-    bottom: 40px;
-    right: 24px;
-    background: #0e7490;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    z-index: 950;
-    transition: all 0.3s ease;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 16px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.92);
+  color: #0e7490;
+  border: 1px solid rgba(14,116,144,0.20);
+  backdrop-filter: blur(12px);
+
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
-.btn-show-analytics:hover {
-    background: var(--primary-hover);
-    transform: translateY(-2px);
+.btn-show-analytics svg{
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
+  pointer-events: none;
 }
 
-.btn-show-analytics.hidden {
-    display: none;
+.btn-show-analytics:hover{
+  background: rgba(255,255,255,0.98);
+  border-color: rgba(14,116,144,0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+}
+
+.btn-show-analytics:active{
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-show-analytics.hidden{
+  display: none;
 }
 
 /* ===================== DEPTH LEGEND (2D ONLY) + TOGGLE ===================== */
@@ -1535,46 +1562,58 @@ details[open].catalog-info-section .catalog-info-header::before {
 }
 
 /* ---------- LEGEND TOGGLE BUTTON (2D) ---------- */
-.btn-legend-toggle {
+.btn-legend-toggle{
   position: fixed;
   right: 15px;
   bottom: 165px;
   z-index: 99999;
   pointer-events: auto;
 
-  background: rgba(200, 240, 255, 0.15);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.30);
-  padding: 7px 10px;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 12px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.92);
+  color: #0e7490;
+  border: 1px solid rgba(14,116,144,0.20);
+  backdrop-filter: blur(12px);
+
   cursor: pointer;
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
 
-  transition:
-    transform 120ms ease,
-    background 120ms ease,
-    border-color 120ms ease,
-    box-shadow 120ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
-.btn-legend-toggle:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.45);
+.btn-legend-toggle svg{
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;   /* your rects will fill with currentColor */
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.btn-legend-toggle:hover{
+  background: rgba(255,255,255,0.98);
+  border-color: rgba(14,116,144,0.35);
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.22);
 }
 
-.btn-legend-toggle:active {
-  transform: scale(0.97);
-  box-shadow: none;
+.btn-legend-toggle:active{
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
 }
 
-.btn-legend-toggle.is-active {
-  background: rgba(255, 255, 255, 0.30);
-  border-color: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+.btn-legend-toggle.is-active{
+  background: linear-gradient(135deg, #0e7490 0%, #0b4a53 100%);
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.25);
 }
 
 /* ===================== DEPTH SETTINGS PANEL ===================== */
