@@ -85,7 +85,8 @@ function updateCatalogMetadata(catalogId) {
     const catalog = catalogsData.find(c => c.catalog_id === parseInt(catalogId));
     if (!catalog) return;
     
-    // Update DOI link
+   // Update DOI link
+    console.log('📄 Catalog:', catalogId, 'DOI:', catalog.doi);
     document.getElementById('catalog-doi').href = catalog.doi && catalog.doi !== 'none' 
         ? `https://doi.org/${catalog.doi}` 
         : '#';
@@ -116,6 +117,7 @@ function updateCatalogMetadata(catalogId) {
     document.getElementById('catalog-association').textContent = metadata.association_method || '—';
     document.getElementById('catalog-location').textContent = metadata.location_method || '—';
     document.getElementById('catalog-velocity').textContent = metadata.velocity_model || '—';
+    document.getElementById('catalog-magnitude').textContent = metadata.magnitude_type || '—';
 }
 
 
