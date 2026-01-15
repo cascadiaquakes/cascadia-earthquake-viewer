@@ -2,7 +2,7 @@ listen_addresses: '0.0.0.0:3001'
 web_ui: enable-for-all
 
 postgres:
-  connection_string: "postgresql://postgres:postgres@postgis-eq:5432/gis"
+  connection_string: "postgresql://postgres:postgres@postgis-eq:5432/gis?sslmode=disable"
 
   auto_publish:
     from_schemas:

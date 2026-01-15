@@ -9,7 +9,7 @@ const port = 3002;
 const pool = new Pool({
     user: 'postgres',
     password: 'postgres',
-    host: 'postgis-eq',
+    host: 'localhost',
     port: 5432,
     database: 'gis'
 });

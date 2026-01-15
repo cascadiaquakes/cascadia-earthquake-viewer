@@ -1,7 +1,9 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+// We use an empty string '' to force relative paths (e.g. /api/catalogs).
+// This ensures requests go through the Vite Proxy in both Dev and Preview modes.
+export const API_BASE_URL = '';
 
-// Tile server for MapLibre (different port)
+// Tile server for MapLibre (Port 3001)
 export const TILE_SERVER_URL = import.meta.env.VITE_TILE_URL || 'http://localhost:3001';
 
 // Helper functions

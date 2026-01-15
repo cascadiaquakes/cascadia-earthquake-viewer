@@ -80,7 +80,10 @@ async function loadCatalogs() {
 /* Store catalog metadata globally */
 let catalogsData = [];
 
+
 /* Update catalog metadata display */
+
+window.updateCatalogMetadata = updateCatalogMetadata;  // Expose globally
 function updateCatalogMetadata(catalogId) {
     const catalog = catalogsData.find(c => c.catalog_id === parseInt(catalogId));
     if (!catalog) return;
@@ -305,8 +308,8 @@ export async function loadEarthquakes(catalogId = 1, limit = 50000) {
                     id: eq.evid,
                     nsta: eq.nsta,
                     gap: eq.gap,
-                    horizontal_error: eq.horizontal_error_km,
-                    vertical_error: eq.vertical_error_km,
+                    horizontal_error_km: eq.horizontal_error_km,
+                    vertical_error_km: eq.vertical_error_km,
                     origin_time: eq.origin_time,
                     region: eq.region || 'N/A'
                 }
@@ -509,7 +512,6 @@ map.on('load', async () => {
         }
     });
 
-
     // Click on Cascadia boundary to show info
     map.on('click', 'cascadia-line', (e) => {
         const coords = e.lngLat;
@@ -544,9 +546,9 @@ map.on('load', async () => {
         map.getCanvas().style.cursor = '';
     });
 
-    
     // Load catalog metadata and initial earthquake data
     catalogsData = await loadCatalogs();
+    window.catalogsData = catalogsData;
     updateCatalogMetadata(2);
     const initial = await loadEarthquakes(2, 50000);
     currentEarthquakeData = initial;
@@ -554,8 +556,8 @@ map.on('load', async () => {
         type: 'geojson',
         data: initial,
         cluster: true,
-        clusterMaxZoom: 5,   // Clusters dissolve at zoom 6+
-        clusterRadius: 30    // Tighter clustering radius
+        clusterMaxZoom: 5,
+        clusterRadius: 30
     });
 
     // Add cluster circle layer
@@ -599,7 +601,7 @@ map.on('load', async () => {
         paint: { 'text-color': '#ffffff' }
     });
 
-    // Add individual earthquake points (color by depth, size by magnitude or default)
+    // Add individual earthquake points
     map.addLayer({
         id: 'eq-points',
         type: 'circle',
@@ -612,11 +614,11 @@ map.on('load', async () => {
                 [
                     'step',
                     ['get', 'depth'],
-                    '#fbbf24', 20,   // Yellow: 0-20km
-                    '#f97316', 40,   // Orange: 20-40km
-                    '#dc2626'        // Red: 40+ km
+                    '#fbbf24', 20,
+                    '#f97316', 40,
+                    '#dc2626'
                 ],
-                '#999999'  // Gray for null depth
+                '#999999'
             ],
             'circle-radius': [
                 'case',
@@ -650,8 +652,32 @@ map.on('load', async () => {
         
         // Format date/time in GMT (UTC)
         const date = new Date(p.origin_time);
-        const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        const timeStr = date.toISOString().split('T')[1].slice(0, 8); // HH:MM:SS UTC
+        const dateStr = date.toISOString().split('T')[0];
+        const timeStr = date.toISOString().split('T')[1].slice(0, 8);
+        
+        // Build uncertainty section if available
+        let uncertaintyHTML = '';
+        if (p.horizontal_error_km || p.vertical_error_km) {
+            uncertaintyHTML = `
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #0e7490;">
+                    <div style="font-weight: 700; font-size: 13px; color: #0b4a53; margin-bottom: 8px;">Location Uncertainty</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                        ${p.horizontal_error_km ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Horizontal:</span>
+                            <span style="color: #334155; font-weight: 500;">${p.horizontal_error_km.toFixed(2)} km</span>
+                        </div>
+                        ` : ''}
+                        ${p.vertical_error_km ? `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #0e7490; font-weight: 600;">Vertical:</span>
+                            <span style="color: #334155; font-weight: 500;">${p.vertical_error_km.toFixed(2)} km</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
         
         const popupHTML = `
             <div style="font-family: Inter, sans-serif; min-width: 200px; padding: 4px;">
@@ -688,10 +714,11 @@ map.on('load', async () => {
                         <span style="color: #334155; font-weight: 500;">${p.nsta ? p.nsta : 'N/A'}</span>
                     </div>
                 </div>
+                ${uncertaintyHTML}
             </div>
         `;
         
-        // Remove any existing popups before adding new one
+        // Remove any existing popups
         const existingPopups = document.getElementsByClassName('maplibregl-popup');
         if (existingPopups.length) {
             while(existingPopups[0]) {
@@ -700,10 +727,10 @@ map.on('load', async () => {
         }
         
         new maplibregl.Popup({ 
-            closeButton: true,          // Show X button
-            closeOnClick: true,         // Close when clicking map
-            closeOnMove: false,         // Don't close when panning
-            maxWidth: '280px',          // Narrower width or usee this to edit teh size
+            closeButton: true,
+            closeOnClick: true,
+            closeOnMove: false,
+            maxWidth: '280px',
             className: 'custom-popup'
         })
             .setLngLat(coords)
@@ -711,7 +738,7 @@ map.on('load', async () => {
             .addTo(map);
     });
 
-    // Change cursor on hover over clusters and points
+    // Change cursor on hover
     ['eq-clusters', 'eq-points'].forEach(layer => {
         map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
@@ -730,10 +757,9 @@ map.on('load', async () => {
     // Initialize depth settings panel
     initDepthSettings();
 
-    // Add layers control (TOP RIGHT)
+    // Add layers control
     map.addControl(new LayersControl(), 'top-right');
 });
-
 
 /* -------------------------------------------------------
    Export Functions
@@ -762,7 +788,6 @@ function downloadAsGeoJSON(features) {
     const geojson = {
         type: 'FeatureCollection',
         features: features.map(f => {
-            // Destructure to exclude 'time' field
             const { time, ...cleanProperties } = f.properties;
             return {
                 type: 'Feature',
@@ -813,4 +838,3 @@ function downloadAsCSV(features) {
     a.download = `cascadia-earthquakes-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
 }
-

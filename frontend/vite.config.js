@@ -13,8 +13,27 @@ export default defineConfig({
       }
     }
   },
+  // ✅ 1. PROXY FOR DEV (npm run dev)
   server: { 
     port: 5173,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
+  // ✅ 2. PROXY FOR BUILD PREVIEW (npm run preview)
+  preview: {
+    port: 4173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 });
