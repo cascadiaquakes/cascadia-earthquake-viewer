@@ -6,6 +6,7 @@ import { getApiUrl } from './src/config.js';
 import { calculateDepthRange, generateDepthColorStops, generateLegendLabels } from './src/depthScale.js';
 import { LayersControl } from './src/controls/LayersControl.js';
 import { BASEMAPS } from './src/mapStyles.js';
+import { initCompareMode } from './src/compareMode.js';
 
 
 /* Show/hide loading indicator */
@@ -47,6 +48,34 @@ const map = new maplibregl.Map({
     zoom: 5.2,
     attributionControl: true
 });
+
+/* -------------------------------------------------------
+   Real-time Mouse Coordinates Tracker
+------------------------------------------------------- */
+const coordsLat = document.getElementById('coords-lat');
+const coordsLon = document.getElementById('coords-lon');
+// Use the ID you added to index.html
+const coordsDiv = document.getElementById('mouse-coords'); 
+
+// We check if 'map' exists before adding listeners
+if (map) {
+    map.on('mousemove', (e) => {
+        // Update numbers
+        if (coordsLat) coordsLat.textContent = e.lngLat.lat.toFixed(3);
+        if (coordsLon) coordsLon.textContent = e.lngLat.lng.toFixed(3);
+    });
+
+    // Fade out to 50% opacity when mouse leaves map
+    map.on('mouseout', () => {
+        if (coordsDiv) coordsDiv.style.opacity = '0.5';
+    });
+    
+    // Fade back to 100% when mouse enters
+    map.on('mouseover', () => {
+        if (coordsDiv) coordsDiv.style.opacity = '1';
+    });
+}
+
 
 
 /* Expose map instance for cross-module UI coordination (analytics panel,, scroll locking) */
@@ -165,39 +194,38 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
         });
         
         // Click on Cascadia boundary to show info
-    map.on('click', 'cascadia-line', (e) => {
-        const coords = e.lngLat;
-        
-        const popupHTML = `
-            <div style="font-family: Inter, sans-serif; padding: 8px;">
-                <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 6px;">
-                    CRESCENT Reporting Boundary
+        map.on('click', 'cascadia-line', (e) => {
+            const coords = e.lngLat;
+            
+            const popupHTML = `
+                <div style="font-family: Inter, sans-serif; padding: 8px;">
+                    <div style="font-weight: 700; font-size: 14px; color: #0b4a53; margin-bottom: 6px;">
+                        CRESCENT Reporting Boundary
+                    </div>
+                    <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
+                        Events may occur beyond this region
+                    </div>
                 </div>
-                <div style="font-size: 12px; color: #64748b; line-height: 1.5;">
-                    Events may occur beyond this region
-                </div>
-            </div>
-        `;
+            `;
+            
+            new maplibregl.Popup({ 
+                closeButton: false,
+                closeOnClick: true,
+                maxWidth: '250px'
+            })
+                .setLngLat(coords)
+                .setHTML(popupHTML)
+                .addTo(map);
+        });
         
-        new maplibregl.Popup({ 
-            closeButton: false,
-            closeOnClick: true,
-            maxWidth: '250px'
-        })
-            .setLngLat(coords)
-            .setHTML(popupHTML)
-            .addTo(map);
-    });
-    
-    // Cursor pointer on boundary hover
-    map.on('mouseenter', 'cascadia-line', () => {
-        map.getCanvas().style.cursor = 'pointer';
-    });
-    
-    map.on('mouseleave', 'cascadia-line', () => {
-        map.getCanvas().style.cursor = '';
-    });
-
+        // Cursor pointer on boundary hover
+        map.on('mouseenter', 'cascadia-line', () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        
+        map.on('mouseleave', 'cascadia-line', () => {
+            map.getCanvas().style.cursor = '';
+        });
         
         // Re-add earthquakes
         if (currentEarthquakeData) {
@@ -267,6 +295,11 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
             console.log(`✅ Earthquakes shown (${currentEarthquakeData.features.length} events)`);
         } else {
             console.warn('⚠️ No earthquake data to restore');
+        }
+        
+        // 🆕 RESTORE COMPARE OVERLAYS
+        if (window.restoreCompareOverlays) {
+            window.restoreCompareOverlays();
         }
         
         console.log(`✅ ${basemapKey} ready`);
@@ -549,16 +582,25 @@ map.on('load', async () => {
     // Load catalog metadata and initial earthquake data
     catalogsData = await loadCatalogs();
     window.catalogsData = catalogsData;
-    updateCatalogMetadata(2);
-    const initial = await loadEarthquakes(2, 50000);
+
+    const initialCatalogId = Number(document.getElementById('catalog-select').value || 2);
+    updateCatalogMetadata(initialCatalogId);
+
+    const initial = await loadEarthquakes(initialCatalogId, 50000);
     currentEarthquakeData = initial;
+
     map.addSource('earthquakes', {
-        type: 'geojson',
-        data: initial,
-        cluster: true,
-        clusterMaxZoom: 5,
-        clusterRadius: 30
+    type: 'geojson',
+    data: initial,
+    cluster: true,
+    clusterMaxZoom: 5,
+    clusterRadius: 30
     });
+
+    //  AFTER base source/layer exists
+    initCompareMode(map, catalogsData);
+
+
 
     // Add cluster circle layer
     map.addLayer({
