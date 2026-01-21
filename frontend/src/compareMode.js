@@ -1,9 +1,10 @@
-// Catalog color palette for overlays
+// Catalog color palette for overlays - LIMITED TO 1
 const OVERLAY_COLORS = [
     { stroke: '#3b82f6', fill: 'rgba(59, 130, 246, 0.3)' },  // Blue
-    { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.3)' },  // Green
-    { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.3)' },  // Orange
+    { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.3)' },  // Green (backup)
 ];
+
+const MAX_OVERLAYS = 1;
 
 let activeOverlays = new Map(); // catalogId -> color index
 let overlayData = new Map(); // catalogId -> geojson data
@@ -43,16 +44,42 @@ export function initCompareMode(map, catalogsData) {
             `;
             
             const checkbox = item.querySelector('input');
-            checkbox.addEventListener('change', (e) => {
+            checkbox.addEventListener('change', async (e) => {
                 if (e.target.checked) {
-                    addOverlayCatalog(map, catalog.catalog_id, colorIndex);
+                    await addOverlayCatalog(map, catalog.catalog_id, colorIndex);
                 } else {
                     removeOverlayCatalog(map, catalog.catalog_id);
                 }
                 updateCatalogLegend();
+                updateCheckboxStates();
+                updateAnalyticsWithOverlays();
             });
             
             compareList.appendChild(item);
+        });
+        
+        updateCheckboxStates();
+    }
+    
+    // Disable/enable checkboxes based on selection count
+    function updateCheckboxStates() {
+        const allCheckboxes = compareList.querySelectorAll('input[type="checkbox"]');
+        const checkedCount = activeOverlays.size;
+        
+        allCheckboxes.forEach(checkbox => {
+            const item = checkbox.closest('.compare-item');
+            
+            if (!checkbox.checked && checkedCount >= MAX_OVERLAYS) {
+                // Disable unchecked items when max reached
+                checkbox.disabled = true;
+                item.style.opacity = '0.5';
+                item.style.cursor = 'not-allowed';
+            } else {
+                // Enable all items when under max
+                checkbox.disabled = false;
+                item.style.opacity = '1';
+                item.style.cursor = 'pointer';
+            }
         });
     }
     
@@ -72,33 +99,43 @@ export function initCompareMode(map, catalogsData) {
             });
             activeOverlays.clear();
             overlayData.clear();
+            
+            // Reset analytics to primary only
+            const source = map.getSource('earthquakes');
+            if (source && source._data && source._data.features && window.updateAnalytics) {
+                window.updateAnalytics(source._data.features, []);
+            }
         }
     });
     
     // Update legend when primary changes
     catalogSelect.addEventListener('change', () => {
         if (enableCompare.checked) {
+            // Clear overlays when changing primary catalog
+            activeOverlays.forEach((_, catalogId) => {
+                removeOverlayCatalog(map, catalogId);
+            });
+            activeOverlays.clear();
+            
             populateCompareList();
             updateCatalogLegend();
+            updateAnalyticsWithOverlays();
         }
     });
     
     function updateCatalogLegend() {
-        const primaryId = parseInt(catalogSelect.value);
-        const primaryCatalog = catalogsData.find(c => c.catalog_id === primaryId);
-        
         catalogLegendItems.innerHTML = '';
         
-        // Primary catalog
-        const primaryItem = document.createElement('div');
-        primaryItem.className = 'catalog-legend-item primary';
-        primaryItem.innerHTML = `
-            <div class="color-box"></div>
-            <span>${primaryCatalog.catalog_name.split('—')[0].trim()}</span>
-        `;
-        catalogLegendItems.appendChild(primaryItem);
+        // Only show overlay catalogs in the legend (not primary)
+        if (activeOverlays.size === 0) {
+            // Hide legend if no overlays
+            catalogLegend.style.display = 'none';
+            return;
+        }
         
-        // Overlay catalogs
+        // Show legend and populate with overlays only
+        catalogLegend.style.display = 'block';
+        
         activeOverlays.forEach((colorIndex, catalogId) => {
             const catalog = catalogsData.find(c => c.catalog_id === catalogId);
             const color = OVERLAY_COLORS[colorIndex];
@@ -114,8 +151,8 @@ export function initCompareMode(map, catalogsData) {
     }
     
     async function addOverlayCatalog(map, catalogId, colorIndex) {
-        if (activeOverlays.size >= 3) {
-            alert('Maximum 3 overlay catalogs allowed');
+        if (activeOverlays.size >= MAX_OVERLAYS) {
+            alert('Maximum 1 overlay catalog allowed');
             document.getElementById(`compare-${catalogId}`).checked = false;
             return;
         }
@@ -123,7 +160,7 @@ export function initCompareMode(map, catalogsData) {
         const color = OVERLAY_COLORS[colorIndex];
         activeOverlays.set(catalogId, colorIndex);
         
-        // 🔧 DISABLE PRIMARY CLUSTERING when first overlay is added
+        // Disable primary clustering when first overlay is added
         if (activeOverlays.size === 1) {
             if (map.getLayer('eq-clusters')) {
                 map.setLayoutProperty('eq-clusters', 'visibility', 'none');
@@ -153,6 +190,8 @@ export function initCompareMode(map, catalogsData) {
                     properties: {
                         depth: eq.depth,
                         mag: eq.magnitude,
+                        mag_type: eq.magnitude_type,
+                        origin_time: eq.origin_time,
                         catalog_id: catalogId
                     }
                 }))
@@ -199,7 +238,7 @@ export function initCompareMode(map, catalogsData) {
         }
         activeOverlays.delete(catalogId);
         
-        // 🔧 RE-ENABLE PRIMARY CLUSTERING when last overlay is removed
+        // Re-enable primary clustering when last overlay is removed
         if (activeOverlays.size === 0) {
             if (map.getLayer('eq-clusters')) {
                 map.setLayoutProperty('eq-clusters', 'visibility', 'visible');
@@ -214,7 +253,39 @@ export function initCompareMode(map, catalogsData) {
         }
     }
     
-    // 🆕 EXPOSE FUNCTION TO RESTORE OVERLAYS AFTER MAP STYLE CHANGE
+    // Update analytics with overlay data
+    function updateAnalyticsWithOverlays() {
+        const source = map.getSource('earthquakes');
+        if (!source || !source._data || !source._data.features) return;
+        
+        const primaryFeatures = source._data.features;
+        
+        // Build overlay catalog data for analytics
+        const overlayCatalogs = [];
+        activeOverlays.forEach((colorIndex, catalogId) => {
+            const geojson = overlayData.get(catalogId);
+            const catalog = catalogsData.find(c => c.catalog_id === catalogId);
+            const color = OVERLAY_COLORS[colorIndex];
+            
+            if (geojson && catalog) {
+                overlayCatalogs.push({
+                    name: catalog.catalog_name.split('—')[0].trim(),
+                    earthquakes: geojson.features,
+                    color: color
+                });
+            }
+        });
+        
+        // Update analytics with primary + overlays
+        if (window.updateAnalytics) {
+            window.updateAnalytics(primaryFeatures, overlayCatalogs);
+        }
+    }
+    
+    // Expose function globally
+    window.updateAnalyticsWithOverlays = updateAnalyticsWithOverlays;
+    
+    // Restore overlays after map style change
     window.restoreCompareOverlays = function() {
         if (activeOverlays.size === 0) return;
         

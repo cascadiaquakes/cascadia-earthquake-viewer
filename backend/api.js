@@ -144,7 +144,7 @@ app.get('/api/earthquakes', async (req, res) => {
                 region
             FROM earthquake.events
             WHERE ${whereClause}
-            ORDER BY origin_time DESC
+            ORDER BY RANDOM()
             LIMIT $${paramCounter}
         `;
 

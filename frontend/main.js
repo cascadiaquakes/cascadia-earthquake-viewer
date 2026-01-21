@@ -482,8 +482,10 @@ window.switchCatalog = async function (catalogId) {
     if (updated && map.getSource('earthquakes')) {
         map.getSource('earthquakes').setData(updated);
         
-        // Update analytics with new catalog data
-        if (window.updateAnalytics) {
+        // Update analytics with overlays if in compare mode
+        if (window.updateAnalyticsWithOverlays) {
+            window.updateAnalyticsWithOverlays();
+        } else if (window.updateAnalytics) {
             window.updateAnalytics(updated.features);
         }
         

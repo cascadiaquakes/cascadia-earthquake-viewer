@@ -1973,7 +1973,7 @@ details[open].catalog-info-section .catalog-info-header::before {
 
 /* ===================== COMPARE CATALOGS ===================== */
 
-/* Subtle info note (not scary warning) */
+/* info note */
 .compare-info {
   background: rgba(14, 116, 144, 0.08);
   border: 1px solid rgba(14, 116, 144, 0.2);
