@@ -66,7 +66,10 @@ app.get('/api/earthquakes', async (req, res) => {
             minLat,
             maxLat,
             minLon,
-            maxLon
+            maxLon,
+            maxHorizontalError,
+            maxVerticalError,
+            includeMissingUncertainty = 'true'  // Default to include missing
         } = req.query;
 
         // Build dynamic WHERE clause
@@ -124,6 +127,30 @@ app.get('/api/earthquakes', async (req, res) => {
             paramCounter++;
         }
 
+        // Add horizontal error filter
+        if (maxHorizontalError && parseFloat(maxHorizontalError) < 100) {
+            const includeNull = includeMissingUncertainty === 'true';
+            if (includeNull) {
+                whereConditions.push(`(horizontal_error_km IS NULL OR horizontal_error_km <= $${paramCounter})`);
+            } else {
+                whereConditions.push(`(horizontal_error_km IS NOT NULL AND horizontal_error_km <= $${paramCounter})`);
+            }
+            values.push(maxHorizontalError);
+            paramCounter++;
+        }
+
+        // Add vertical error filter
+        if (maxVerticalError && parseFloat(maxVerticalError) < 100) {
+            const includeNull = includeMissingUncertainty === 'true';
+            if (includeNull) {
+                whereConditions.push(`(vertical_error_km IS NULL OR vertical_error_km <= $${paramCounter})`);
+            } else {
+                whereConditions.push(`(vertical_error_km IS NOT NULL AND vertical_error_km <= $${paramCounter})`);
+            }
+            values.push(maxVerticalError);
+            paramCounter++;
+        }
+
         const whereClause = whereConditions.join(' AND ');
         values.push(limit);
 
@@ -160,6 +187,7 @@ app.get('/api/earthquakes', async (req, res) => {
         res.status(500).json({ error: 'Database query failed' });
     }
 });
+
 
 app.listen(port, () => {
     console.log(`Earthquake API running on http://localhost:${port}`);

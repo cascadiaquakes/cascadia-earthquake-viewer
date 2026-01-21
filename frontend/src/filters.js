@@ -5,6 +5,9 @@ import { getApiUrl } from './config.js';
 let currentFilters = {
     depth: [0, 100],
     magnitude: [-2, 10],
+    horizontalError: 100,
+    verticalError: 100,
+    includeMissingUncertainty: true,
     startDate: null,
     endDate: null,
     minLat: null,
@@ -13,11 +16,14 @@ let currentFilters = {
     maxLon: null
 };
 
+let previewDebounceTimer = null;
+
 export function initFilters(map) {
     initDepthSlider();
     initMagnitudeSlider();
+    initUncertaintySliders();
     initDateInputs();
-    initSpatialInputs();
+    initSpatialInputs(map); // Pass map for preview
     initButtons(map);
 }
 
@@ -57,6 +63,48 @@ function initMagnitudeSlider() {
     });
 }
 
+function initUncertaintySliders() {
+    // Horizontal error slider
+    const horizSlider = document.getElementById('horizontal-error-slider');
+    if (horizSlider) {
+        noUiSlider.create(horizSlider, {
+            start: [100],
+            connect: [true, false],
+            range: { min: 0, max: 100 },
+            step: 1
+        });
+        
+        horizSlider.noUiSlider.on('update', (values) => {
+            document.getElementById('horiz-error-val').textContent = Math.round(values[0]);
+            currentFilters.horizontalError = parseFloat(values[0]);
+        });
+    }
+    
+    // Vertical error slider
+    const vertSlider = document.getElementById('vertical-error-slider');
+    if (vertSlider) {
+        noUiSlider.create(vertSlider, {
+            start: [100],
+            connect: [true, false],
+            range: { min: 0, max: 100 },
+            step: 1
+        });
+        
+        vertSlider.noUiSlider.on('update', (values) => {
+            document.getElementById('vert-error-val').textContent = Math.round(values[0]);
+            currentFilters.verticalError = parseFloat(values[0]);
+        });
+    }
+    
+    // Include missing uncertainty checkbox
+    const checkbox = document.getElementById('include-missing-uncertainty');
+    if (checkbox) {
+        checkbox.addEventListener('change', (e) => {
+            currentFilters.includeMissingUncertainty = e.target.checked;
+        });
+    }
+}
+
 function initDateInputs() {
     const startInput = document.getElementById('start-date');
     const endInput = document.getElementById('end-date');
@@ -82,30 +130,137 @@ function initDateInputs() {
     }
 }
 
-function initSpatialInputs() {
+function initSpatialInputs(map) {
     const minLatInput = document.getElementById('min-lat');
     const maxLatInput = document.getElementById('max-lat');
     const minLonInput = document.getElementById('min-lon');
     const maxLonInput = document.getElementById('max-lon');
     
-    if (minLatInput) minLatInput.addEventListener('change', (e) => {
-        currentFilters.minLat = e.target.value ? parseFloat(e.target.value) : null;
-    });
-    if (maxLatInput) maxLatInput.addEventListener('change', (e) => {
-        currentFilters.maxLat = e.target.value ? parseFloat(e.target.value) : null;
-    });
-    if (minLonInput) minLonInput.addEventListener('change', (e) => {
-        currentFilters.minLon = e.target.value ? parseFloat(e.target.value) : null;
-    });
-    if (maxLonInput) maxLonInput.addEventListener('change', (e) => {
-        currentFilters.maxLon = e.target.value ? parseFloat(e.target.value) : null;
-    });
+    // Debounced preview function
+    const debouncedPreview = () => {
+        clearTimeout(previewDebounceTimer);
+        previewDebounceTimer = setTimeout(() => {
+            previewSpatialBounds(map);
+        }, 200); // 200ms debounce for smooth typing
+    };
+    
+    if (minLatInput) {
+        minLatInput.addEventListener('input', (e) => {
+            currentFilters.minLat = e.target.value ? parseFloat(e.target.value) : null;
+            debouncedPreview();
+        });
+    }
+    
+    if (maxLatInput) {
+        maxLatInput.addEventListener('input', (e) => {
+            currentFilters.maxLat = e.target.value ? parseFloat(e.target.value) : null;
+            debouncedPreview();
+        });
+    }
+    
+    if (minLonInput) {
+        minLonInput.addEventListener('input', (e) => {
+            currentFilters.minLon = e.target.value ? parseFloat(e.target.value) : null;
+            debouncedPreview();
+        });
+    }
+    
+    if (maxLonInput) {
+        maxLonInput.addEventListener('input', (e) => {
+            currentFilters.maxLon = e.target.value ? parseFloat(e.target.value) : null;
+            debouncedPreview();
+        });
+    }
+}
+
+/* Preview spatial bounds in real-time (no data fetch) */
+function previewSpatialBounds(map) {
+    const { minLat, maxLat, minLon, maxLon } = currentFilters;
+    
+    // Only preview if all 4 values exist and are valid numbers
+    if (!minLat || !maxLat || !minLon || !maxLon || 
+        !Number.isFinite(minLat) || !Number.isFinite(maxLat) ||
+        !Number.isFinite(minLon) || !Number.isFinite(maxLon)) {
+        // Clear preview if incomplete
+        clearSpatialBounds(map);
+        return;
+    }
+    
+    // Auto-swap if reversed (for preview only, don't modify inputs yet)
+    let previewMinLat = minLat;
+    let previewMaxLat = maxLat;
+    let previewMinLon = minLon;
+    let previewMaxLon = maxLon;
+    
+    if (minLat > maxLat) {
+        [previewMinLat, previewMaxLat] = [maxLat, minLat];
+    }
+    if (minLon > maxLon) {
+        [previewMinLon, previewMaxLon] = [maxLon, minLon];
+    }
+    
+    const boundsPolygon = {
+        type: 'Feature',
+        geometry: {
+            type: 'Polygon',
+            coordinates: [[
+                [previewMinLon, previewMinLat],
+                [previewMaxLon, previewMinLat],
+                [previewMaxLon, previewMaxLat],
+                [previewMinLon, previewMaxLat],
+                [previewMinLon, previewMinLat]
+            ]]
+        }
+    };
+    
+    // If source exists, just update data (efficient)
+    if (map.getSource('spatial-bounds')) {
+        map.getSource('spatial-bounds').setData(boundsPolygon);
+    } else {
+        // First time: create source + layers
+        map.addSource('spatial-bounds', {
+            type: 'geojson',
+            data: boundsPolygon
+        });
+        
+        // Fill (semi-transparent)
+        map.addLayer({
+            id: 'spatial-bounds-fill',
+            type: 'fill',
+            source: 'spatial-bounds',
+            paint: {
+                'fill-color': '#0ea5e9',
+                'fill-opacity': 0.1
+            }
+        });
+        
+        // Outline (dashed border)
+        map.addLayer({
+            id: 'spatial-bounds-line',
+            type: 'line',
+            source: 'spatial-bounds',
+            paint: {
+                'line-color': '#0ea5e9',
+                'line-width': 2,
+                'line-dasharray': [4, 2]
+            }
+        });
+    }
+}
+
+/* Clear spatial bounds visualization */
+function clearSpatialBounds(map) {
+    if (map.getSource('spatial-bounds')) {
+        if (map.getLayer('spatial-bounds-line')) map.removeLayer('spatial-bounds-line');
+        if (map.getLayer('spatial-bounds-fill')) map.removeLayer('spatial-bounds-fill');
+        map.removeSource('spatial-bounds');
+    }
 }
 
 async function applyFiltersToMap(map, filters) {
     showLoading();
     
-    // Auto-swap lat/lon if reversed
+    // Auto-swap lat/lon if reversed (and update inputs permanently)
     if (filters.minLat && filters.maxLat && filters.minLat > filters.maxLat) {
         console.log('⚠️ Auto-swapping: Min Lat > Max Lat');
         [filters.minLat, filters.maxLat] = [filters.maxLat, filters.minLat];
@@ -122,7 +277,8 @@ async function applyFiltersToMap(map, filters) {
         document.getElementById('max-lon').value = filters.maxLon;
     }
     
-    drawSpatialBounds(map, filters);
+    // Update preview with swapped values
+    previewSpatialBounds(map);
     
     const params = new URLSearchParams({
         catalog: document.getElementById('catalog-select').value,
@@ -146,6 +302,16 @@ async function applyFiltersToMap(map, filters) {
     if (filters.minLon) params.append('minLon', filters.minLon);
     if (filters.maxLon) params.append('maxLon', filters.maxLon);
     
+    // Add uncertainty filters (only if not at max = 100)
+    if (filters.horizontalError < 100) {
+        params.append('maxHorizontalError', filters.horizontalError);
+        params.append('includeMissingUncertainty', filters.includeMissingUncertainty);
+    }
+    if (filters.verticalError < 100) {
+        params.append('maxVerticalError', filters.verticalError);
+        params.append('includeMissingUncertainty', filters.includeMissingUncertainty);
+    }
+    
     console.log('🔄 Fetching filtered earthquakes...');
     
     try {
@@ -167,8 +333,8 @@ async function applyFiltersToMap(map, filters) {
                     id: eq.evid,
                     nsta: eq.nsta,
                     gap: eq.gap,
-                    horizontal_error: eq.horizontal_error_km,
-                    vertical_error: eq.vertical_error_km,
+                    horizontal_error_km: eq.horizontal_error_km,
+                    vertical_error_km: eq.vertical_error_km,
                     origin_time: eq.origin_time,
                     region: eq.region || 'N/A',
                     time: new Date(eq.origin_time).toLocaleString()
@@ -191,63 +357,6 @@ async function applyFiltersToMap(map, filters) {
     }
 }
 
-/* Visualize spatial bounding box on map */
-function drawSpatialBounds(map, filters) {
-    // Remove existing bounds if any
-    if (map.getSource('spatial-bounds')) {
-        map.removeLayer('spatial-bounds-line');
-        map.removeLayer('spatial-bounds-fill');
-        map.removeSource('spatial-bounds');
-    }
-    
-    // Only draw if spatial bounds are set
-    if (!filters.minLat || !filters.maxLat || !filters.minLon || !filters.maxLon) {
-        return;
-    }
-    
-    const bounds = {
-        type: 'Feature',
-        geometry: {
-            type: 'Polygon',
-            coordinates: [[
-                [filters.minLon, filters.minLat],
-                [filters.maxLon, filters.minLat],
-                [filters.maxLon, filters.maxLat],
-                [filters.minLon, filters.maxLat],
-                [filters.minLon, filters.minLat]
-            ]]
-        }
-    };
-    
-    map.addSource('spatial-bounds', {
-        type: 'geojson',
-        data: bounds
-    });
-    
-    // Fill (semi-transparent)
-    map.addLayer({
-        id: 'spatial-bounds-fill',
-        type: 'fill',
-        source: 'spatial-bounds',
-        paint: {
-            'fill-color': '#0ea5e9',
-            'fill-opacity': 0.1
-        }
-    });
-    
-    // Outline (dashed border)
-    map.addLayer({
-        id: 'spatial-bounds-line',
-        type: 'line',
-        source: 'spatial-bounds',
-        paint: {
-            'line-color': '#0ea5e9',
-            'line-width': 2,
-            'line-dasharray': [4, 2]
-        }
-    });
-}
-
 function initButtons(map) {
     const showAllBtn = document.getElementById('show-all');
     const applyBtn = document.getElementById('apply-filters');
@@ -256,37 +365,8 @@ function initButtons(map) {
     // Show All Events button
     if (showAllBtn) {
         showAllBtn.addEventListener('click', async () => {
-            // Reset all filter values
-            const depthSlider = document.getElementById('depth-slider');
-            const magSlider = document.getElementById('magnitude-slider');
-            
-            if (depthSlider && depthSlider.noUiSlider) depthSlider.noUiSlider.set([0, 100]);
-            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([-2, 10]);
-            
-            document.getElementById('start-date').value = '';
-            document.getElementById('end-date').value = '';
-            document.getElementById('min-lat').value = '';
-            document.getElementById('max-lat').value = '';
-            document.getElementById('min-lon').value = '';
-            document.getElementById('max-lon').value = '';
-            
-            currentFilters = { 
-                depth: [0, 100], 
-                magnitude: [-2, 10], 
-                startDate: null, 
-                endDate: null, 
-                minLat: null, 
-                maxLat: null, 
-                minLon: null, 
-                maxLon: null 
-            };
-            
-            // Clear spatial bounds visualization
-            if (map.getSource('spatial-bounds')) {
-                map.removeLayer('spatial-bounds-line');
-                map.removeLayer('spatial-bounds-fill');
-                map.removeSource('spatial-bounds');
-            }
+            resetAllFilters();
+            clearSpatialBounds(map);
             
             // Reload full catalog (loadEarthquakes handles loading state)
             const catalogId = document.getElementById('catalog-select').value;
@@ -314,36 +394,8 @@ function initButtons(map) {
     // Reset Filters button
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            const depthSlider = document.getElementById('depth-slider');
-            const magSlider = document.getElementById('magnitude-slider');
-            
-            if (depthSlider && depthSlider.noUiSlider) depthSlider.noUiSlider.set([0, 100]);
-            if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([-2, 10]);
-            
-            document.getElementById('start-date').value = '';
-            document.getElementById('end-date').value = '';
-            document.getElementById('min-lat').value = '';
-            document.getElementById('max-lat').value = '';
-            document.getElementById('min-lon').value = '';
-            document.getElementById('max-lon').value = '';
-            
-            currentFilters = { 
-                depth: [0, 100], 
-                magnitude: [-2, 10], 
-                startDate: null, 
-                endDate: null, 
-                minLat: null, 
-                maxLat: null, 
-                minLon: null, 
-                maxLon: null 
-            };
-            
-            // Clear spatial bounds visualization
-            if (map.getSource('spatial-bounds')) {
-                map.removeLayer('spatial-bounds-line');
-                map.removeLayer('spatial-bounds-fill');
-                map.removeSource('spatial-bounds');
-            }
+            resetAllFilters();
+            clearSpatialBounds(map);
             
             // Reload full catalog without filters
             const catalogId = document.getElementById('catalog-select').value;
@@ -352,4 +404,40 @@ function initButtons(map) {
             console.log('✅ Filters reset');
         });
     }
+}
+
+function resetAllFilters() {
+    const depthSlider = document.getElementById('depth-slider');
+    const magSlider = document.getElementById('magnitude-slider');
+    const horizSlider = document.getElementById('horizontal-error-slider');
+    const vertSlider = document.getElementById('vertical-error-slider');
+    
+    if (depthSlider && depthSlider.noUiSlider) depthSlider.noUiSlider.set([0, 100]);
+    if (magSlider && magSlider.noUiSlider) magSlider.noUiSlider.set([-2, 10]);
+    if (horizSlider && horizSlider.noUiSlider) horizSlider.noUiSlider.set([100]);
+    if (vertSlider && vertSlider.noUiSlider) vertSlider.noUiSlider.set([100]);
+    
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    document.getElementById('min-lat').value = '';
+    document.getElementById('max-lat').value = '';
+    document.getElementById('min-lon').value = '';
+    document.getElementById('max-lon').value = '';
+    
+    const checkbox = document.getElementById('include-missing-uncertainty');
+    if (checkbox) checkbox.checked = true;
+    
+    currentFilters = { 
+        depth: [0, 100], 
+        magnitude: [-2, 10],
+        horizontalError: 100,
+        verticalError: 100,
+        includeMissingUncertainty: true,
+        startDate: null, 
+        endDate: null, 
+        minLat: null, 
+        maxLat: null, 
+        minLon: null, 
+        maxLon: null 
+    };
 }

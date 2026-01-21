@@ -210,6 +210,34 @@
                 </div>
             </details>
 
+            <details class="filter-section simple">
+                <summary class="filter-header">Location Uncertainty</summary>
+                <div class="filter-content">
+                    <div class="filter-group">
+                        <label class="filter-label">
+                            <input type="checkbox" id="include-missing-uncertainty" class="filter-checkbox" checked>
+                            Include events with missing uncertainty
+                        </label>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <label class="input-label">Max Horizontal Error (km)</label>
+                        <div id="horizontal-error-slider" class="slider"></div>
+                        <div class="slider-values">
+                            <span id="horiz-error-val">100</span> km
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 16px;">
+                        <label class="input-label">Max Vertical Error (km)</label>
+                        <div id="vertical-error-slider" class="slider"></div>
+                        <div class="slider-values">
+                            <span id="vert-error-val">100</span> km
+                        </div>
+                    </div>
+                </div>
+            </details>            
+
             <div class="filter-actions">
                 <button id="show-all" class="btn-show-all">Show All Events</button>
                 <div class="filter-actions-row">

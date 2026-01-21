@@ -2107,3 +2107,12 @@ details[open].catalog-info-section .catalog-info-header::before {
   background: linear-gradient(135deg, #fbbf24, #f97316, #dc2626);
   border-color: rgba(100, 116, 139, 0.5);
 }
+
+
+.slider-values {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+    text-align: right;
+}

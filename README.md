@@ -78,6 +78,33 @@ All catalogs include peer-reviewed publication DOI links accessible via the web 
 - Click events to view detailed metadata
 - Real-time catalog switching (279K events loaded in seconds)
 
+
+## Analytics & Compare Mode 
+### Sampling Strategy
+- **Random sampling** via `ORDER BY RANDOM()` (~900ms for 10k events)
+- Avoids temporal bias (no "newest-only" skew)
+- Overlay catalogs: 10k event cap
+- Primary catalog: 50k event cap
+
+### Normalization
+- Histograms show **% of catalog**, not raw counts
+- Enables fair comparison between catalogs of different sizes
+- Y-axis: "% of Catalog" when comparing
+
+### What We Show
+✅ Distribution shapes (magnitude, depth, time)  
+✅ Temporal coverage differences  
+✅ Structural patterns  
+
+### What We Don't Claim
+❌ Absolute event rates  
+❌ Statistical significance  
+❌ Completeness analysis  
+❌ Catalog quality comparison  
+
+
+
+
 **Data Export**
 - GeoJSON format (preserves all metadata and geometry)
 - CSV format (tabular data with all attributes)
