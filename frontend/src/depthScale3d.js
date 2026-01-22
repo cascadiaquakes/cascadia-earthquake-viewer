@@ -1,3 +1,5 @@
+import * as Cesium from 'cesium';
+
 // Auto-calculate optimal depth range from earthquake data
 export function calculateDepthRange(earthquakes) {
     if (!earthquakes || earthquakes.length === 0) {

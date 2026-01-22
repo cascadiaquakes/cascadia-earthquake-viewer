@@ -4,8 +4,9 @@ import { getApiUrl } from './config.js';
 import { calculateDepthRange, getDepthColor, generateLegendLabels } from './depthScale3d.js';
 
 Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN;
+// CRESCENT Fault Model URL
+const CFM_3D_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';
 
-/* Viewer configuration */
 const viewer = new Cesium.Viewer('cesiumContainer', {
     terrain: Cesium.Terrain.fromWorldTerrain(),
     baseLayerPicker: false,
@@ -21,6 +22,11 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
     requestRenderMode: true,
     maximumRenderTimeChange: Infinity
 });
+
+viewer.scene.globe.terrainExaggeration = 2.5;  // Make terrain 2.5x taller
+viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0;  // Exaggerate from sea level
+
+
 
 // Camera zoom display
 const cameraStatusEl = document.getElementById('camera-status');
@@ -135,6 +141,57 @@ function hidePoliticalBoundaries() {
     boundaryDataSources.forEach(ds => ds.show = false);
 }
 
+/* CRESCENT Fault Model (3D) */
+let cfm3dDataSource = null;
+
+async function loadCfm3D() {
+    if (cfm3dDataSource) {
+        cfm3dDataSource.show = true;
+        console.log('✅ Showing CRESCENT CFM 3D fault model');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Loading CRESCENT CFM 3D fault model...');
+        
+        const ds = await Cesium.GeoJsonDataSource.load(CFM_3D_URL, {
+            clampToGround: false  // Keep real 3D depth
+        });
+        
+        // Style all fault surfaces
+        for (const entity of ds.entities.values) {
+            // Polygons (fault surfaces)
+            if (entity.polygon) {
+                entity.polygon.material = Cesium.Color.CYAN.withAlpha(0.15);
+                entity.polygon.outline = true;
+                entity.polygon.outlineColor = Cesium.Color.CYAN.withAlpha(0.7);
+                entity.polygon.outlineWidth = 2;
+            }
+            
+            // Polylines (fault traces)
+            if (entity.polyline) {
+                entity.polyline.width = 2.5;
+                entity.polyline.material = Cesium.Color.CYAN.withAlpha(0.8);
+            }
+        }
+        
+        viewer.dataSources.add(ds);
+        cfm3dDataSource = ds;
+        
+        console.log('✅ Loaded CRESCENT CFM 3D fault model');
+    } catch (error) {
+        console.error('❌ Failed to load CFM 3D GeoJSON:', error);
+    }
+}
+
+function hideCfm3D() {
+    if (cfm3dDataSource) {
+        cfm3dDataSource.show = false;
+        console.log('👁️ Hidden CRESCENT CFM 3D fault model');
+    }
+}
+
+
 /* Color by depth - Auto-adjusts based on current depth range */
 function getColorByDepth(depth) {
     const range = window.currentDepthRange3D || { min: 0, max: 60 };
@@ -200,12 +257,14 @@ async function loadEarthquakes(filters = {}) {
                 name: "Seismic Event",
                 position: Cesium.Cartesian3.fromDegrees(eq.longitude, eq.latitude, 0),
                 point: {
-                    pixelSize: 5,
-                    color: getColorByDepth(eq.depth),
-                    outlineColor: Cesium.Color.WHITE.withAlpha(0.4),
-                    outlineWidth: 1,
-                    scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2.0, 8.0e6, 0.5)
-                },
+                pixelSize: 5,
+                color: getColorByDepth(eq.depth),
+                outlineColor: Cesium.Color.WHITE.withAlpha(0.4),
+                outlineWidth: 1,
+                scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2.5, 8.0e6, 1.2),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            },
                 properties: {
                     evid: eq.evid,
                     depth: eq.depth,
@@ -237,6 +296,7 @@ async function loadEarthquakes(filters = {}) {
         hideLoading();
     }
 }
+
 /* Re-render earthquakes with updated depth colors */
 function renderEarthquakesWithDepthColors(earthquakes, minDepth, maxDepth) {
     if (!earthquakes || !viewer) return;
@@ -250,6 +310,35 @@ function renderEarthquakesWithDepthColors(earthquakes, minDepth, maxDepth) {
     
     console.log('🎨 Updated earthquake colors for new depth range');
 }
+
+/* Update depth scale based on current earthquakes */
+function updateDepthScale3D(earthquakes) {
+    if (!earthquakes || earthquakes.length === 0) return;
+    
+    // Check if auto mode is selected
+    const autoRadio = document.querySelector('input[name="depth-mode-3d"][value="auto"]');
+    if (!autoRadio || !autoRadio.checked) return; // Skip if in custom mode
+    
+    // Calculate optimal depth range
+    const depthRange = calculateDepthRange(earthquakes);
+    window.currentDepthRange3D = depthRange;
+    
+    // Update legend labels
+    const labels = generateLegendLabels(depthRange.min, depthRange.max);
+    const legendLabels = document.querySelectorAll('#depth-legend-3d .legend-labels span');
+    if (legendLabels.length === 4) {
+        legendLabels[0].textContent = labels[0];
+        legendLabels[1].textContent = labels[1];
+        legendLabels[2].textContent = labels[2];
+        legendLabels[3].textContent = labels[3];
+    }
+    
+    // Re-color earthquakes with new range
+    renderEarthquakesWithDepthColors(earthquakes, depthRange.min, depthRange.max);
+    
+    console.log(`📊 3D Depth scale: ${depthRange.min}-${depthRange.max} km`);
+}
+
 
 
 /* Initialize depth settings panel for 3D */
@@ -560,21 +649,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Catalog dropdown
-    const select = document.getElementById('catalog-select-3d');
-    if (select) {
-        select.addEventListener('change', (e) => {
-            const catalogId = e.target.value;
-            loadEarthquakes({ catalog: catalogId });
-        });
-    }
+    // Load initial earthquakes
+        loadEarthquakes({ catalog: 2 });
+        
+        //  Setup catalog change listener
+        const catalogSelect = document.getElementById('catalog-select-3d');
+        if (catalogSelect) {
+            catalogSelect.addEventListener('change', (e) => {
+                loadEarthquakes({ catalog: e.target.value });
+            });
+        }
+    });
     
     // Initialize date pickers
     if (window.flatpickr) {
         flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
         flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
     }
-});  // ← THIS CLOSES DOMContentLoaded
 
 /* Click handler */
 let currentPopup = null;
@@ -689,6 +780,7 @@ handler.setInputAction((click) => {
 
 // Initialize
 addCascadiaBoundary();
+await loadCfm3D();
 loadEarthquakes({ catalog: 2 });
 
 export { viewer, loadEarthquakes };

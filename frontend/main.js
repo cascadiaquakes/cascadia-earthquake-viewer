@@ -7,6 +7,8 @@ import { calculateDepthRange, generateDepthColorStops, generateLegendLabels } fr
 import { LayersControl } from './src/controls/LayersControl.js';
 import { BASEMAPS } from './src/mapStyles.js';
 import { initCompareMode } from './src/compareMode.js';
+import { initFaultOverlay, setFaultsVisible } from './src/faultOverlay.js';
+const CFM_TRACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 
 /* Show/hide loading indicator */
@@ -297,11 +299,25 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
             console.warn('⚠️ No earthquake data to restore');
         }
         
-        // 🆕 RESTORE COMPARE OVERLAYS
+        //RESTORE COMPARE OVERLAYS
         if (window.restoreCompareOverlays) {
             window.restoreCompareOverlays();
         }
-        
+
+        // ✅ RESTORE FAULT TRACES (wrapped in async IIFE)
+        (async () => {
+            try {
+                await initFaultOverlay(map, CFM_TRACE_URL, {
+                    lineColor: '#dc2626',
+                    lineOpacity: 0.7,
+                    initialVisibility: 'visible'
+                });
+                console.log('✅ Restored fault traces after basemap switch');
+            } catch (error) {
+                console.error('❌ Error restoring fault traces:', error);
+            }
+        })();
+
         console.log(`✅ ${basemapKey} ready`);
     });
 };
@@ -517,6 +533,18 @@ map.on('load', async () => {
     // Initialize zoom display
     updateZoomDisplay();
     map.on('move', updateZoomDisplay);
+
+    // Load fault traces
+    try {
+        await initFaultOverlay(map, CFM_TRACE_URL, {
+            lineColor: '#dc2626',
+            lineOpacity: 0.7,
+            initialVisibility: 'visible'
+        });
+        console.log('✅ Loaded CRESCENT fault traces');
+    } catch (error) {
+        console.error('❌ Error loading fault traces:', error);
+    }
 
     // Add Cascadia study region boundary
     map.addSource('cascadia-boundary', {
@@ -882,3 +910,17 @@ function downloadAsCSV(features) {
     a.download = `cascadia-earthquakes-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
 }
+
+// Fault toggle button
+const faultToggle = document.getElementById('toggle-faults');
+if (faultToggle) {
+    let faultsVisible = true;
+    faultToggle.addEventListener('click', () => {
+        faultsVisible = !faultsVisible;
+        setFaultsVisible(map, faultsVisible);
+        faultToggle.style.opacity = faultsVisible ? '1' : '0.5';
+    });
+}
+
+//  Make setFaultsVisible global for LayersControl
+window.setFaultsVisible = setFaultsVisible;
