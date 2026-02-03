@@ -8,7 +8,7 @@ import { LayersControl } from './src/controls/LayersControl.js';
 import { BASEMAPS } from './src/mapStyles.js';
 import { initCompareMode } from './src/compareMode.js';
 import { initFaultOverlay, setFaultsVisible } from './src/faultOverlay.js';
-const CFM_TRACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
+const CFM_TRACE_URL_2D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 
 /* Show/hide loading indicator */
@@ -307,7 +307,7 @@ window.switchMapStyle = function(basemapKey, basemapConfig) {
         // ✅ RESTORE FAULT TRACES (wrapped in async IIFE)
         (async () => {
             try {
-                await initFaultOverlay(map, CFM_TRACE_URL, {
+                await initFaultOverlay(map, CFM_TRACE_URL_2D, {
                     lineColor: '#dc2626',
                     lineOpacity: 0.7,
                     initialVisibility: 'visible'
@@ -536,7 +536,7 @@ map.on('load', async () => {
 
     // Load fault traces
     try {
-        await initFaultOverlay(map, CFM_TRACE_URL, {
+        await initFaultOverlay(map, CFM_TRACE_URL_2D, {
             lineColor: '#dc2626',
             lineOpacity: 0.7,
             initialVisibility: 'visible'

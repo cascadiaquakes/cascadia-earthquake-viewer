@@ -39,12 +39,14 @@ const TILTED_VIEW = {
 
 
 
-// Depth exaggeration
+// Depth exaggeration for subsurface earthquake points
+// NOTE: Applied ONLY to earthquake depths for visualization clarity.
+// Terrain exaggeration remains at 1.0 to maintain geographic accuracy.
 const DEPTH_EXAGGERATION = 0.0001;
 
 // CFM data URLs
-const CFM_SURFACE_URL = '/crescent_cfm_crustal_3d_shaped.json';
-const CFM_TRACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
+const CFM_SURFACE_URL = '/data/crescent_cfm_crustal_3d_shaped.json';
+const CFM_TRACE_URL_3D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 // 2D Surface (Subduction interface) URL
 const SUBDUCTION_INTERFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/cascadia_subduction_interface_temp.geojson';
@@ -54,6 +56,8 @@ const SUBDUCTION_INTERFACE_URL = 'https://raw.githubusercontent.com/cascadiaquak
 // ============================================================================
 
 let viewer = null;
+let clickHandler = null;
+let preRenderCallback = null;
 
 async function waitForNonZeroSize(el) {
     while (el.clientWidth <= 0 || el.clientHeight <= 0) {
@@ -79,7 +83,8 @@ async function initViewer() {
         skyBox: false,
         skyAtmosphere: false,
         
-        imageryProvider: false,
+        imageryProvider: undefined,
+        imageryProviderViewModels: [],
         
         globe: new Cesium.Globe(Cesium.Ellipsoid.WGS84, {
             minimumZoomDistance: 0.0
@@ -95,10 +100,10 @@ async function initViewer() {
         fullscreenButton: true,
         infoBox: false,
         selectionIndicator: false,
-        
         enableCollisionDetection: false,
         navigationInstructionsInitiallyVisible: false,
-        requestRenderMode: false
+        requestRenderMode: true,              
+        maximumRenderTimeChange: Infinity     
     });
 
     const scene = viewer.scene;
@@ -137,7 +142,7 @@ async function initViewer() {
     });
 
     const scratchNormal = new Cesium.Cartesian3();
-    scene.preRender.addEventListener(function (scene, time) {
+    preRenderCallback = scene.preRender.addEventListener(function (scene, time) {
         const surfaceNormal = globe.ellipsoid.geodeticSurfaceNormal(
             camera.positionWC,
             scratchNormal
@@ -384,7 +389,7 @@ async function loadCFMTraces() {
 
     try {
         console.log('🔄 Loading CFM fault traces...');
-        const dataSource = await Cesium.GeoJsonDataSource.load(CFM_TRACE_URL, {
+        const dataSource = await Cesium.GeoJsonDataSource.load(CFM_TRACE_URL_3D, {
             stroke: Cesium.Color.CRIMSON,
             strokeWidth: 3,
             fill: Cesium.Color.TRANSPARENT,
@@ -441,11 +446,8 @@ async function load2DSurfaces() {
 
     try {
         console.log('🔄 Loading 2D surfaces (subduction interface)...');
-        const response = await fetch(SUBDUCTION_INTERFACE_URL, { cache: 'no-cache' });
-        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-        const geojson = await response.json();
-
-        const dataSource = await Cesium.GeoJsonDataSource.load(geojson, {
+        
+        const dataSource = await Cesium.GeoJsonDataSource.load(SUBDUCTION_INTERFACE_URL, {
             clampToGround: false
         });
 
@@ -1177,14 +1179,14 @@ async function main() {
     viewer.camera.lookAt(cascadiaTarget, obliqueOffset);
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
 
-    // 6. Add Visual Elements
+    // Add Visual Elements
     addCascadiaBoundary();
 
-    // 7. Setup Click Handler (Popups)
-    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-    handler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    // Setup Click Handler (Popups)
+    clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    clickHandler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-    // 8. Initialize UI Components
+ 
     
     // Depth Slider
     const depthSlider = document.getElementById('depth-slider-3d');
@@ -1278,6 +1280,16 @@ export { viewer, loadEarthquakes };
 
 // Cleanup function - call when leaving 3D view
 export function cleanup3D() {
+    if (clickHandler) {
+        clickHandler.destroy();
+        clickHandler = null;
+    }
+    
+    if (preRenderCallback && viewer) {
+        viewer.scene.preRender.removeEventListener(preRenderCallback);
+        preRenderCallback = null;
+    }
+    
     if (viewer) {
         viewer.entities.removeAll();
         viewer.dataSources.removeAll();
