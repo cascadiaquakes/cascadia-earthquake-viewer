@@ -7,11 +7,11 @@ const port = 3002;
 
 // PostgreSQL connection
 const pool = new Pool({
-    user: 'postgres',
-    password: 'postgres',
-    host: 'localhost',
-    port: 5490,
-    database: 'gis'
+    user: process.env.PGUSER || 'postgres',
+    password: process.env.PGPASSWORD || 'postgres',
+    host: process.env.PGHOST || 'postgis-eq',  // CHANGED
+    port: process.env.PGPORT || 5432,           // CHANGED
+    database: process.env.PGDATABASE || 'gis'
 });
 
 // CORS middleware
