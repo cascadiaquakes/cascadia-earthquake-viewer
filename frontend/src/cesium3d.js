@@ -43,7 +43,7 @@ const TILTED_VIEW = {
 const DEPTH_EXAGGERATION = 0.0001;
 
 // CFM data URLs
-const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';
+const CFM_SURFACE_URL = '/crescent_cfm_crustal_3d_shaped.json';
 const CFM_TRACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 // 2D Surface (Subduction interface) URL
@@ -323,45 +323,6 @@ window.togglePoliticalBoundaries = function(show) {
 let cfmSurfaceDataSource = null;
 let cfmTraceDataSource = null;
 
-function decimateGeoJSON(geojson, step = 8) {
-    const result = { type: 'FeatureCollection', features: [] };
-
-    for (const feature of (geojson.features || [])) {
-        const geom = feature.geometry;
-        
-        if (geom.type === 'MultiPolygon') {
-            const decimatedCoords = geom.coordinates.map(polygon =>
-                polygon.map(ring => {
-                    if (!ring || ring.length < 4) return ring;
-                    
-                    const decimated = [];
-                    for (let i = 0; i < ring.length; i += step) {
-                        decimated.push(ring[i]);
-                    }
-                    
-                    const first = decimated[0];
-                    const last = decimated[decimated.length - 1];
-                    if (first && last && (first[0] !== last[0] || first[1] !== last[1] || first[2] !== last[2])) {
-                        decimated.push(first);
-                    }
-                    
-                    return decimated.length >= 4 ? decimated : ring;
-                })
-            );
-            
-            result.features.push({
-                type: 'Feature',
-                properties: feature.properties || {},
-                geometry: { type: 'MultiPolygon', coordinates: decimatedCoords }
-            });
-        } else {
-            result.features.push(feature);
-        }
-    }
-
-    return result;
-}
-
 async function loadCFMSurfaces() {
     if (!viewer) return;
     
@@ -372,15 +333,9 @@ async function loadCFMSurfaces() {
     }
 
     try {
-        console.log('🔄 Loading CFM fault surfaces...');
-        const response = await fetch(CFM_SURFACE_URL, { cache: 'no-cache' });
-        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-        const geojson = await response.json();
-
-        console.log('🔧 Decimating CFM surfaces (step=8)...');
-        const decimated = decimateGeoJSON(geojson, 8);
-
-        const dataSource = await Cesium.GeoJsonDataSource.load(decimated, {
+        console.log('🔄 Loading CFM fault surfaces (simplified)...');
+        
+        const dataSource = await Cesium.GeoJsonDataSource.load(CFM_SURFACE_URL, {
             clampToGround: false
         });
 
@@ -416,6 +371,7 @@ window.toggleCFMSurfaces = function(show) {
         hideCFMSurfaces();
     }
 };
+
 
 async function loadCFMTraces() {
     if (!viewer) return;
@@ -489,10 +445,7 @@ async function load2DSurfaces() {
         if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
         const geojson = await response.json();
 
-        console.log('🔧 Decimating 2D surfaces (step=6)...');
-        const decimated = decimateGeoJSON(geojson, 6);
-
-        const dataSource = await Cesium.GeoJsonDataSource.load(decimated, {
+        const dataSource = await Cesium.GeoJsonDataSource.load(geojson, {
             clampToGround: false
         });
 
