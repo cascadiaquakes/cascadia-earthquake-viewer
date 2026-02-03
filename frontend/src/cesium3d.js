@@ -4,59 +4,13 @@ import { getApiUrl } from './config.js';
 import { calculateDepthRange, getDepthColor, generateLegendLabels } from './depthScale3d.js';
 
 Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN;
-// CRESCENT Fault Model URL
-const CFM_3D_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';
 
-const viewer = new Cesium.Viewer('cesiumContainer', {
-    terrain: Cesium.Terrain.fromWorldTerrain(),
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: true,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    animation: false,
-    timeline: false,
-    fullscreenButton: true,
-    infoBox: false,
-    selectionIndicator: false,  
-    requestRenderMode: true,
-    maximumRenderTimeChange: Infinity
-});
+let previewDebounceTimer = null;
 
-viewer.scene.globe.terrainExaggeration = 2.5;  // Make terrain 2.5x taller
-viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0;  // Exaggerate from sea level
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 
-
-
-// Camera zoom display
-const cameraStatusEl = document.getElementById('camera-status');
-const EARTH_RADIUS = 6378137.0;
-
-function updateCameraStatus() {
-    if (!cameraStatusEl) return;
-    const carto = viewer.camera.positionCartographic;
-    const height = carto.height;
-    const fovy = viewer.camera.frustum.fovy;
-    const canvas = viewer.scene.canvas;
-    const metersPerPixel = (2 * height * Math.tan(fovy / 2)) / canvas.clientHeight;
-    const zoom = Math.log2((2 * Math.PI * EARTH_RADIUS) / (metersPerPixel * 256));
-    cameraStatusEl.textContent = `Zoom: ${zoom.toFixed(2)}`;
-}
-
-viewer.camera.changed.addEventListener(updateCameraStatus);
-updateCameraStatus();
-
-/* Initial camera position */
-viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(-124.0, 45.0, 1600000), 
-    orientation: {
-        heading: Cesium.Math.toRadians(0),
-        pitch: Cesium.Math.toRadians(-80),
-        roll: 0.0
-    }
-});
-
-/* Cascadia boundary */
 const CASCADIA_BOUNDS = {
     west: -130.0,
     east: -116.0,
@@ -64,7 +18,214 @@ const CASCADIA_BOUNDS = {
     north: 52.0
 };
 
+// Camera initial position - tilted horizontal view
+const CENTERED_VIEW = {
+    lon: -123.0,
+    lat: 45.5,
+    height: 3000000,
+    heading: 0.0,
+    pitch: -90.0,
+    roll: 0.0
+};
+
+const TILTED_VIEW = {
+    lon: -124.5,
+    lat: 44.2,
+    height: 3000000,
+    heading: 35.0,     // ROTATES THE MAP
+    pitch: -38.0,
+    roll: 0.0
+};
+
+
+
+// Depth exaggeration
+const DEPTH_EXAGGERATION = 0.0001;
+
+// CFM data URLs
+const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';
+const CFM_TRACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
+
+// 2D Surface (Subduction interface) URL
+const SUBDUCTION_INTERFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/cascadia_subduction_interface_temp.geojson';
+
+// ============================================================================
+// VIEWER INITIALIZATION
+// ============================================================================
+
+let viewer = null;
+
+async function waitForNonZeroSize(el) {
+    while (el.clientWidth <= 0 || el.clientHeight <= 0) {
+        await new Promise(r => requestAnimationFrame(r));
+    }
+}
+
+async function initViewer() {
+    const container = document.getElementById('cesiumContainer');
+    if (!container) throw new Error('Missing #cesiumContainer');
+
+    await waitForNonZeroSize(container);
+
+    console.log('🔄 Initializing Cesium viewer...');
+
+    viewer = new Cesium.Viewer(container, {
+        depthPlaneEllipsoidOffset: 10000,
+        nearToFarRatio: 1e6,
+        farToNearRatio: 1e-6,
+        
+        sceneMode: Cesium.SceneMode.SCENE3D,
+        scene3DOnly: true,
+        skyBox: false,
+        skyAtmosphere: false,
+        
+        imageryProvider: false,
+        
+        globe: new Cesium.Globe(Cesium.Ellipsoid.WGS84, {
+            minimumZoomDistance: 0.0
+        }),
+        
+        baseLayerPicker: false,
+        geocoder: false,
+        homeButton: true,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        animation: false,
+        timeline: false,
+        fullscreenButton: true,
+        infoBox: false,
+        selectionIndicator: false,
+        
+        enableCollisionDetection: false,
+        navigationInstructionsInitiallyVisible: false,
+        requestRenderMode: false
+    });
+
+    const scene = viewer.scene;
+    const globe = scene.globe;
+    const camera = scene.camera;
+
+    scene.backgroundColor = Cesium.Color.BLACK;
+
+    globe.show = true;
+    globe.baseColor = Cesium.Color.BLACK;
+    globe.showGroundAtmosphere = false;
+    globe.enableLighting = true;
+    globe.depthTestAgainstTerrain = true;
+    globe.maximumScreenSpaceError = 1.0;
+    globe.frontFaceAlphaByDistance = new Cesium.NearFarScalar(50.0, 0.0, 100.0, 1.0);
+
+    scene.fog.enabled = false;
+
+    globe.terrainExaggeration = 1.0;
+    globe.terrainExaggerationRelativeHeight = 0.0;
+
+    try {
+        scene.setTerrain(
+            new Cesium.Terrain(
+                Cesium.CesiumTerrainProvider.fromIonAssetId(2426648)
+            )
+        );
+        console.log('✅ Using Cesium Ion terrain asset 2426648');
+    } catch (error) {
+        console.warn('⚠️ Terrain asset 2426648 unavailable, using world terrain');
+        scene.setTerrain(Cesium.Terrain.fromWorldTerrain());
+    }
+
+    scene.light = new Cesium.DirectionalLight({
+        direction: new Cesium.Cartesian3(1, 0, 0)
+    });
+
+    const scratchNormal = new Cesium.Cartesian3();
+    scene.preRender.addEventListener(function (scene, time) {
+        const surfaceNormal = globe.ellipsoid.geodeticSurfaceNormal(
+            camera.positionWC,
+            scratchNormal
+        );
+        const negativeNormal = Cesium.Cartesian3.negate(surfaceNormal, surfaceNormal);
+        scene.light.direction = Cesium.Cartesian3.normalize(
+            Cesium.Cartesian3.add(negativeNormal, camera.rightWC, surfaceNormal),
+            scene.light.direction
+        );
+    });
+
+    console.log('✅ Cesium viewer initialized');
+    return viewer;
+}
+
+// ============================================================================
+// CAMERA STATUS DISPLAY
+// ============================================================================
+
+let cameraStatusEl = null;
+const EARTH_RADIUS = 6378137.0;
+
+function updateCameraStatus() {
+    if (!cameraStatusEl || !viewer) return;
+    const carto = viewer.camera.positionCartographic;
+    const height = Math.max(1.0, carto.height || 0);
+    const fovy = viewer.camera.frustum.fovy;
+    const canvas = viewer.scene.canvas;
+    const h = canvas?.clientHeight || 0;
+    if (h <= 0) return;
+    const metersPerPixel = (2 * height * Math.tan(fovy / 2)) / h;
+    const zoom = Math.log2((2 * Math.PI * EARTH_RADIUS) / (metersPerPixel * 256));
+    cameraStatusEl.textContent = `Zoom: ${zoom.toFixed(2)}`;
+}
+
+// ============================================================================
+// CAMERA VIEW CONTROLS (FIXED: Matches Default View Logic)
+// ============================================================================
+
+window.setCameraView = function(viewType) {
+    if (!viewer) return;
+
+    // 1. Calculate the exact center of the Cascadia region (Same logic as main)
+    const centerLon = (CASCADIA_BOUNDS.west + CASCADIA_BOUNDS.east) / 2.0;
+    const centerLat = (CASCADIA_BOUNDS.south + CASCADIA_BOUNDS.north) / 2.0;
+    
+    // 2. Create the target point (Ground level at center)
+    const target = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 0.0);
+
+    if (viewType === 'centered') {
+        // Option A: Centered (Top-Down View)
+        const offset = new Cesium.HeadingPitchRange(
+            Cesium.Math.toRadians(0),    // Heading: North Up
+            Cesium.Math.toRadians(-90),  // Pitch: Straight Down
+            3000000                      // Range: 3,000km
+        );
+        
+        // Fly to the target with the specific top-down offset
+        viewer.camera.flyToBoundingSphere(
+            new Cesium.BoundingSphere(target, 0),
+            { offset: offset, duration: 2.0 }
+        );
+        console.log('📷 Camera: Centered view');
+
+    } else if (viewType === 'tilted') {
+        // Option B: Tilted (Default Startup View)
+        const offset = new Cesium.HeadingPitchRange(
+            Cesium.Math.toRadians(35.0),   // Heading: Rotated 35°
+            Cesium.Math.toRadians(-38.0),  // Pitch: Tilted -38°
+            3000000                        // Range: 3,000km
+        );
+
+        // Fly to the target with the specific oblique offset
+        viewer.camera.flyToBoundingSphere(
+            new Cesium.BoundingSphere(target, 0),
+            { offset: offset, duration: 2.0 }
+        );
+        console.log('📷 Camera: Tilted view (Restored to Default)');
+    }
+};
+
+// ============================================================================
+// CASCADIA BOUNDARY
+// ============================================================================
+
 function addCascadiaBoundary() {
+    if (!viewer) return;
+
     viewer.entities.add({
         name: 'Cascadia Study Region',
         rectangle: {
@@ -104,16 +265,21 @@ function addCascadiaBoundary() {
     });
 }
 
-/* Political boundaries */
+// ============================================================================
+// POLITICAL BOUNDARIES
+// ============================================================================
+
 let boundariesLoaded = false;
 let boundaryDataSources = [];
 
 async function loadPoliticalBoundaries() {
+    if (!viewer) return;
+
     if (boundariesLoaded) {
         boundaryDataSources.forEach(ds => ds.show = true);
         return;
     }
-    
+
     try {
         const usStates = await Cesium.GeoJsonDataSource.load('/geojson/us-states.json', {
             stroke: Cesium.Color.WHITE.withAlpha(0.6),
@@ -122,7 +288,7 @@ async function loadPoliticalBoundaries() {
         });
         viewer.dataSources.add(usStates);
         boundaryDataSources.push(usStates);
-        
+
         const canadaProvinces = await Cesium.GeoJsonDataSource.load('/geojson/georef-canada-province-public.geojson', {
             stroke: Cesium.Color.WHITE.withAlpha(0.6),
             strokeWidth: 2,
@@ -130,8 +296,9 @@ async function loadPoliticalBoundaries() {
         });
         viewer.dataSources.add(canadaProvinces);
         boundaryDataSources.push(canadaProvinces);
-        
+
         boundariesLoaded = true;
+        console.log('✅ Political boundaries loaded');
     } catch (error) {
         console.error('❌ Error loading boundaries:', error);
     }
@@ -141,68 +308,257 @@ function hidePoliticalBoundaries() {
     boundaryDataSources.forEach(ds => ds.show = false);
 }
 
-/* CRESCENT Fault Model (3D) */
-let cfm3dDataSource = null;
+window.togglePoliticalBoundaries = function(show) {
+    if (show) {
+        loadPoliticalBoundaries();
+    } else {
+        hidePoliticalBoundaries();
+    }
+};
 
-async function loadCfm3D() {
-    if (cfm3dDataSource) {
-        cfm3dDataSource.show = true;
-        console.log('✅ Showing CRESCENT CFM 3D fault model');
+// ============================================================================
+// CFM FAULT SURFACES & TRACES
+// ============================================================================
+
+let cfmSurfaceDataSource = null;
+let cfmTraceDataSource = null;
+
+function decimateGeoJSON(geojson, step = 8) {
+    const result = { type: 'FeatureCollection', features: [] };
+
+    for (const feature of (geojson.features || [])) {
+        const geom = feature.geometry;
+        
+        if (geom.type === 'MultiPolygon') {
+            const decimatedCoords = geom.coordinates.map(polygon =>
+                polygon.map(ring => {
+                    if (!ring || ring.length < 4) return ring;
+                    
+                    const decimated = [];
+                    for (let i = 0; i < ring.length; i += step) {
+                        decimated.push(ring[i]);
+                    }
+                    
+                    const first = decimated[0];
+                    const last = decimated[decimated.length - 1];
+                    if (first && last && (first[0] !== last[0] || first[1] !== last[1] || first[2] !== last[2])) {
+                        decimated.push(first);
+                    }
+                    
+                    return decimated.length >= 4 ? decimated : ring;
+                })
+            );
+            
+            result.features.push({
+                type: 'Feature',
+                properties: feature.properties || {},
+                geometry: { type: 'MultiPolygon', coordinates: decimatedCoords }
+            });
+        } else {
+            result.features.push(feature);
+        }
+    }
+
+    return result;
+}
+
+async function loadCFMSurfaces() {
+    if (!viewer) return;
+    
+    if (cfmSurfaceDataSource) {
+        cfmSurfaceDataSource.show = true;
+        console.log('✅ Showing CFM surfaces');
         return;
     }
-    
+
     try {
-        console.log('🔄 Loading CRESCENT CFM 3D fault model...');
-        
-        const ds = await Cesium.GeoJsonDataSource.load(CFM_3D_URL, {
-            clampToGround: false  // Keep real 3D depth
+        console.log('🔄 Loading CFM fault surfaces...');
+        const response = await fetch(CFM_SURFACE_URL, { cache: 'no-cache' });
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const geojson = await response.json();
+
+        console.log('🔧 Decimating CFM surfaces (step=8)...');
+        const decimated = decimateGeoJSON(geojson, 8);
+
+        const dataSource = await Cesium.GeoJsonDataSource.load(decimated, {
+            clampToGround: false
         });
-        
-        // Style all fault surfaces
-        for (const entity of ds.entities.values) {
-            // Polygons (fault surfaces)
+
+        dataSource.entities.values.forEach(entity => {
             if (entity.polygon) {
-                entity.polygon.material = Cesium.Color.CYAN.withAlpha(0.15);
+                entity.polygon.perPositionHeight = true;
+                entity.polygon.material = Cesium.Color.MAGENTA.withAlpha(0.5);
                 entity.polygon.outline = true;
-                entity.polygon.outlineColor = Cesium.Color.CYAN.withAlpha(0.7);
+                entity.polygon.outlineColor = Cesium.Color.MAGENTA;
+                entity.polygon.outlineWidth = 1;
+            }
+        });
+
+        viewer.dataSources.add(dataSource);
+        cfmSurfaceDataSource = dataSource;
+
+        console.log('✅ CFM surfaces loaded');
+    } catch (error) {
+        console.error('❌ Failed to load CFM surfaces:', error);
+    }
+}
+
+function hideCFMSurfaces() {
+    if (cfmSurfaceDataSource) {
+        cfmSurfaceDataSource.show = false;
+    }
+}
+
+window.toggleCFMSurfaces = function(show) {
+    if (show) {
+        loadCFMSurfaces();
+    } else {
+        hideCFMSurfaces();
+    }
+};
+
+async function loadCFMTraces() {
+    if (!viewer) return;
+    
+    if (cfmTraceDataSource) {
+        cfmTraceDataSource.show = true;
+        console.log('✅ Showing CFM traces');
+        return;
+    }
+
+    try {
+        console.log('🔄 Loading CFM fault traces...');
+        const dataSource = await Cesium.GeoJsonDataSource.load(CFM_TRACE_URL, {
+            stroke: Cesium.Color.CRIMSON,
+            strokeWidth: 3,
+            fill: Cesium.Color.TRANSPARENT,
+            clampToGround: false
+        });
+
+        dataSource.entities.values.forEach(entity => {
+            if (entity.polyline) {
+                entity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+                    glowPower: 0.2,
+                    color: Cesium.Color.CRIMSON
+                });
+                entity.polyline.width = 2;
+            }
+        });
+
+        viewer.dataSources.add(dataSource);
+        cfmTraceDataSource = dataSource;
+
+        console.log('✅ CFM traces loaded');
+    } catch (error) {
+        console.error('❌ Failed to load CFM traces:', error);
+    }
+}
+
+function hideCFMTraces() {
+    if (cfmTraceDataSource) {
+        cfmTraceDataSource.show = false;
+    }
+}
+
+window.toggleCFMTraces = function(show) {
+    if (show) {
+        loadCFMTraces();
+    } else {
+        hideCFMTraces();
+    }
+};
+
+// ============================================================================
+// 2D SURFACES (Subduction Interface)
+// ============================================================================
+
+let subductionDataSource = null;
+
+async function load2DSurfaces() {
+    if (!viewer) return;
+    
+    if (subductionDataSource) {
+        subductionDataSource.show = true;
+        console.log('✅ Showing 2D surfaces');
+        return;
+    }
+
+    try {
+        console.log('🔄 Loading 2D surfaces (subduction interface)...');
+        const response = await fetch(SUBDUCTION_INTERFACE_URL, { cache: 'no-cache' });
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const geojson = await response.json();
+
+        console.log('🔧 Decimating 2D surfaces (step=6)...');
+        const decimated = decimateGeoJSON(geojson, 6);
+
+        const dataSource = await Cesium.GeoJsonDataSource.load(decimated, {
+            clampToGround: false
+        });
+
+        dataSource.entities.values.forEach(entity => {
+            if (entity.polygon) {
+                entity.polygon.perPositionHeight = true;
+                entity.polygon.material = Cesium.Color.OLIVE.withAlpha(0.4);
+                entity.polygon.outline = true;
+                entity.polygon.outlineColor = Cesium.Color.YELLOW;
                 entity.polygon.outlineWidth = 2;
             }
-            
-            // Polylines (fault traces)
-            if (entity.polyline) {
-                entity.polyline.width = 2.5;
-                entity.polyline.material = Cesium.Color.CYAN.withAlpha(0.8);
-            }
-        }
-        
-        viewer.dataSources.add(ds);
-        cfm3dDataSource = ds;
-        
-        console.log('✅ Loaded CRESCENT CFM 3D fault model');
+        });
+
+        viewer.dataSources.add(dataSource);
+        subductionDataSource = dataSource;
+
+        console.log('✅ 2D surfaces loaded');
     } catch (error) {
-        console.error('❌ Failed to load CFM 3D GeoJSON:', error);
+        console.error('❌ Failed to load 2D surfaces:', error);
     }
 }
 
-function hideCfm3D() {
-    if (cfm3dDataSource) {
-        cfm3dDataSource.show = false;
-        console.log('👁️ Hidden CRESCENT CFM 3D fault model');
+function hide2DSurfaces() {
+    if (subductionDataSource) {
+        subductionDataSource.show = false;
     }
 }
 
+window.toggle2DSurfaces = function(show) {
+    if (show) {
+        load2DSurfaces();
+    } else {
+        hide2DSurfaces();
+    }
+};
 
-/* Color by depth - Auto-adjusts based on current depth range */
+// ============================================================================
+// INITIALIZE DEFAULT LAYERS (auto-load checked items)
+// ============================================================================
+
+async function loadDefaultLayers() {
+    const cfmTracesChecked = document.getElementById('toggle-cfm-traces')?.checked;
+    const cfmSurfacesChecked = document.getElementById('toggle-cfm-surfaces')?.checked;
+    const surfaces2DChecked = document.getElementById('toggle-2d-surfaces')?.checked;
+    const boundariesChecked = document.getElementById('toggle-boundaries')?.checked;
+
+    if (cfmTracesChecked) await loadCFMTraces();
+    if (cfmSurfacesChecked) await loadCFMSurfaces();
+    if (surfaces2DChecked) await load2DSurfaces();
+    if (boundariesChecked) await loadPoliticalBoundaries();
+
+    console.log('✅ Default layers loaded');
+}
+
+// ============================================================================
+// EARTHQUAKE DATA n RENDERING
+// ============================================================================
+
 function getColorByDepth(depth) {
     const range = window.currentDepthRange3D || { min: 0, max: 60 };
     return getDepthColor(depth, range.min, range.max).withAlpha(0.7);
 }
 
-/* Store current earthquakes */
 let currentEarthquakes = [];
 let spatialBoundaryEntity = null;
 
-/* Loading indicator */
 function showLoading() {
     const overlay = document.getElementById('loading-overlay');
     if (overlay) overlay.classList.add('active');
@@ -213,20 +569,20 @@ function hideLoading() {
     if (overlay) overlay.classList.remove('active');
 }
 
-/* Load earthquakes from API */
 async function loadEarthquakes(filters = {}) {
+    if (!viewer) return;
+
     showLoading();
-    
-    // Close any open popup when loading new data
+
     const existingPopup = document.querySelector('.cesium-popup-close');
     if (existingPopup && existingPopup.parentElement) {
         existingPopup.parentElement.remove();
     }
-    
+
     try {
         const params = new URLSearchParams({
             catalog: filters.catalog || 2,
-            limit: 15000  // Reduced for performance
+            limit: 2000
         });
 
         if (filters.minDepth !== undefined) params.append('minDepth', filters.minDepth);
@@ -241,30 +597,40 @@ async function loadEarthquakes(filters = {}) {
         console.log('🔄 Loading earthquakes...');
         const response = await fetch(getApiUrl(`/api/earthquakes?${params}`));
         const data = await response.json();
-        
+
         console.log(`📊 Loaded ${data.count} earthquakes`);
         currentEarthquakes = data.earthquakes;
 
-        // Clear existing earthquake entities
         viewer.entities.values
             .filter(e => e.id && e.id.toString().startsWith('earthquake-'))
             .forEach(e => viewer.entities.remove(e));
 
-        // Add new earthquakes
+        // Get current circle size from slider
+        const circleSizeSlider = document.getElementById('circle-size-slider-3d');
+        let currentSize = 3.0;
+        if (circleSizeSlider && circleSizeSlider.noUiSlider) {
+            currentSize = parseFloat(circleSizeSlider.noUiSlider.get());
+        }
+
         data.earthquakes.forEach(eq => {
             viewer.entities.add({
                 id: `earthquake-${eq.evid}`,
                 name: "Seismic Event",
-                position: Cesium.Cartesian3.fromDegrees(eq.longitude, eq.latitude, 0),
+                position: new Cesium.ConstantPositionProperty(
+                    Cesium.Cartesian3.fromDegrees(
+                        eq.longitude,
+                        eq.latitude,
+                        -eq.depth * 1000.0 * DEPTH_EXAGGERATION
+                    )
+                ),
                 point: {
-                pixelSize: 5,
-                color: getColorByDepth(eq.depth),
-                outlineColor: Cesium.Color.WHITE.withAlpha(0.4),
-                outlineWidth: 1,
-                scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2.5, 8.0e6, 1.2),
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-            },
+                    pixelSize: currentSize,
+                    color: getColorByDepth(eq.depth),
+                    outlineColor: Cesium.Color.WHITE.withAlpha(0.3),
+                    outlineWidth: 0.5,
+                    scaleByDistance: new Cesium.NearFarScalar(1.5e2, 1.8, 8.0e6, 0.8),
+                    disableDepthTestDistance: 1500000.0
+                },
                 properties: {
                     evid: eq.evid,
                     depth: eq.depth,
@@ -277,7 +643,6 @@ async function loadEarthquakes(filters = {}) {
             });
         });
 
-        // Draw spatial boundary if filters applied
         if (filters.minLat && filters.maxLat && filters.minLon && filters.maxLon) {
             drawSpatialBoundary(filters.minLon, filters.minLat, filters.maxLon, filters.maxLat);
         } else {
@@ -286,7 +651,6 @@ async function loadEarthquakes(filters = {}) {
 
         console.log('✅ Earthquakes rendered');
         
-        // Auto-adjust depth scale
         window.currentEarthquakes3D = data.earthquakes;
         updateDepthScale3D(data.earthquakes);
         
@@ -297,33 +661,28 @@ async function loadEarthquakes(filters = {}) {
     }
 }
 
-/* Re-render earthquakes with updated depth colors */
 function renderEarthquakesWithDepthColors(earthquakes, minDepth, maxDepth) {
     if (!earthquakes || !viewer) return;
     
     earthquakes.forEach(eq => {
         const entity = viewer.entities.getById(`earthquake-${eq.evid}`);
         if (entity && entity.point) {
-            entity.point.color = getDepthColor(eq.depth, minDepth, maxDepth);
+            entity.point.color = getDepthColor(eq.depth, minDepth, maxDepth).withAlpha(0.7);
         }
     });
     
     console.log('🎨 Updated earthquake colors for new depth range');
 }
 
-/* Update depth scale based on current earthquakes */
 function updateDepthScale3D(earthquakes) {
     if (!earthquakes || earthquakes.length === 0) return;
     
-    // Check if auto mode is selected
     const autoRadio = document.querySelector('input[name="depth-mode-3d"][value="auto"]');
-    if (!autoRadio || !autoRadio.checked) return; // Skip if in custom mode
+    if (!autoRadio || !autoRadio.checked) return;
     
-    // Calculate optimal depth range
     const depthRange = calculateDepthRange(earthquakes);
     window.currentDepthRange3D = depthRange;
     
-    // Update legend labels
     const labels = generateLegendLabels(depthRange.min, depthRange.max);
     const legendLabels = document.querySelectorAll('#depth-legend-3d .legend-labels span');
     if (legendLabels.length === 4) {
@@ -333,15 +692,15 @@ function updateDepthScale3D(earthquakes) {
         legendLabels[3].textContent = labels[3];
     }
     
-    // Re-color earthquakes with new range
     renderEarthquakesWithDepthColors(earthquakes, depthRange.min, depthRange.max);
     
     console.log(`📊 3D Depth scale: ${depthRange.min}-${depthRange.max} km`);
 }
 
+// ============================================================================
+// DEPTH SETTINGS PANEL
+// ============================================================================
 
-
-/* Initialize depth settings panel for 3D */
 function initDepthSettings3D() {
     const settingsBtn = document.getElementById('depth-settings-btn-3d');
     const settingsPanel = document.getElementById('depth-settings-panel-3d');
@@ -354,23 +713,19 @@ function initDepthSettings3D() {
     
     if (!settingsBtn || !settingsPanel) return;
     
-    // Toggle settings panel
     settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         settingsPanel.classList.toggle('active');
     });
     
-    // Close when clicking outside
     document.addEventListener('click', (e) => {
         if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
             settingsPanel.classList.remove('active');
         }
     });
     
-    // Toggle between auto and custom mode
     autoRadio.addEventListener('change', () => {
         customInputs.classList.remove('active');
-        // Re-apply auto depth scale
         if (window.currentEarthquakes3D) {
             updateDepthScale3D(window.currentEarthquakes3D);
         }
@@ -380,7 +735,6 @@ function initDepthSettings3D() {
         customInputs.classList.add('active');
     });
     
-    // Apply custom depth range
     const applyCustomRange = () => {
         if (!customRadio.checked) return;
         
@@ -392,7 +746,6 @@ function initDepthSettings3D() {
             return;
         }
         
-        // Update legend labels
         const labels = generateLegendLabels(min, max);
         const legendLabels = document.querySelectorAll('#depth-legend-3d .legend-labels span');
         if (legendLabels.length === 4) {
@@ -402,7 +755,6 @@ function initDepthSettings3D() {
             legendLabels[3].textContent = labels[3];
         }
         
-        // Update depth range and re-color points
         window.currentDepthRange3D = { min, max };
         if (window.currentEarthquakes3D) {
             renderEarthquakesWithDepthColors(window.currentEarthquakes3D, min, max);
@@ -411,11 +763,9 @@ function initDepthSettings3D() {
         console.log(`🎨 3D Custom depth range: ${min}-${max} km`);
     };
     
-    // Apply when inputs change
     minInput.addEventListener('change', applyCustomRange);
     maxInput.addEventListener('change', applyCustomRange);
     
-    // Reset to auto
     resetBtn.addEventListener('click', () => {
         autoRadio.checked = true;
         customInputs.classList.remove('active');
@@ -426,8 +776,13 @@ function initDepthSettings3D() {
     });
 }
 
-/* Draw spatial boundary box */
+// ============================================================================
+// SPATIAL BOUNDARY
+// ============================================================================
+
 function drawSpatialBoundary(minLon, minLat, maxLon, maxLat) {
+    if (!viewer) return;
+    
     clearSpatialBoundary();
     
     spatialBoundaryEntity = viewer.entities.add({
@@ -444,37 +799,73 @@ function drawSpatialBoundary(minLon, minLat, maxLon, maxLat) {
 }
 
 function clearSpatialBoundary() {
-    if (spatialBoundaryEntity) {
+    if (spatialBoundaryEntity && viewer) {
         viewer.entities.remove(spatialBoundaryEntity);
         spatialBoundaryEntity = null;
     }
 }
 
-/* Terrain mode switcher */
+// ============================================================================
+// TERRAIN / BASEMAP MODE SWITCHER (RESTORED TO ION ASSET 2)
+// ============================================================================
+
 let currentMode = 'satellite';
 
 window.setTerrainModeFromSelect = async function(modeInput) {
+    if (!viewer) return;
+
     let mode = (typeof modeInput === 'string') ? modeInput : modeInput.value;
     currentMode = mode;
-    
+
     const imageryLayers = viewer.imageryLayers;
-    
+    const globe = viewer.scene.globe;
+
     if (mode === 'satellite') {
+        // 1. Clear existing layers
         imageryLayers.removeAll();
-        imageryLayers.addImageryProvider(await Cesium.IonImageryProvider.fromAssetId(2));
-        viewer.scene.globe.baseColor = Cesium.Color.BLACK;
-        viewer.scene.globe.showGroundAtmosphere = true;
+        
+        try {
+            // RESTORED: This is the method from your first code that worked.
+            // Asset ID 2 is the default Satellite imagery (Bing Maps Aerial)
+            const satelliteImagery = await Cesium.IonImageryProvider.fromAssetId(2);
+            imageryLayers.addImageryProvider(satelliteImagery);
+            
+            console.log('🌍 Switched to Satellite mode (Ion Asset 2)');
+
+        } catch (error) {
+            console.error("❌ Failed to load Satellite imagery:", error);
+        }
+        
+        // 2. Adjust Globe settings for Satellite visibility
+        globe.show = true;
+        globe.baseColor = Cesium.Color.BLACK; 
+        globe.showGroundAtmosphere = true;
+        // Important: Keep lighting FALSE for satellite so the map isn't dark at "night" time
+        globe.enableLighting = false; 
+        
         hidePoliticalBoundaries();
+        
     } else {
+        // Dark mode / Vector mode (No changes here)
         imageryLayers.removeAll();
-        viewer.scene.globe.showGroundAtmosphere = false;
+        
+        globe.show = true;
+        globe.baseColor = Cesium.Color.BLACK;
+        globe.showGroundAtmosphere = false;
+        globe.enableLighting = true; 
+        
         await loadPoliticalBoundaries();
-        viewer.scene.globe.baseColor = Cesium.Color.BLACK;
+        console.log('🌑 Switched to Dark mode');
     }
 };
 
 
-/* Apply filters */
+
+
+// ============================================================================
+// FILTER FUNCTIONS (exposed to window for HTML buttons)
+// ============================================================================
+
 window.applyFilters3D = function() {
     const catalogId = document.getElementById('catalog-select-3d').value;
     const depthSlider = document.getElementById('depth-slider-3d');
@@ -509,7 +900,6 @@ window.applyFilters3D = function() {
     });
 };
 
-/* Reset filters */
 window.resetFilters3D = function() {
     document.getElementById('catalog-select-3d').value = 2;
     const depthSlider = document.getElementById('depth-slider-3d');
@@ -531,7 +921,6 @@ window.resetFilters3D = function() {
     loadEarthquakes({ catalog: 2 });
 };
 
-/* Show all events */
 window.showAllEvents3D = function() {
     const catalogId = document.getElementById('catalog-select-3d').value;
     const depthSlider = document.getElementById('depth-slider-3d');
@@ -553,7 +942,10 @@ window.showAllEvents3D = function() {
     loadEarthquakes({ catalog: catalogId });
 };
 
-/* Export functions */
+// ============================================================================
+// EXPORT FUNCTIONS
+// ============================================================================
+
 window.download3DData = function(format) {
     if (currentEarthquakes.length === 0) {
         alert('No earthquake data loaded.');
@@ -611,68 +1003,15 @@ function downloadAsCSV3D(earthquakes) {
     a.click();
 }
 
+// ============================================================================
+// CLICK HANDLER (earthquake popup)
+// ============================================================================
 
-/* Initialize UI and click handlers */
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize depth slider
-    const depthSlider = document.getElementById('depth-slider-3d');
-    if (depthSlider && window.noUiSlider) {
-        noUiSlider.create(depthSlider, {
-            start: [0, 100],
-            connect: true,
-            range: { min: 0, max: 100 },
-            step: 1
-        });
-
-        depthSlider.noUiSlider.on('update', (values) => {
-            document.getElementById('depth-min-val-3d').textContent = Math.round(values[0]);
-            document.getElementById('depth-max-val-3d').textContent = Math.round(values[1]);
-        });
-    }
-    
-    // Initialize depth settings panel
-    initDepthSettings3D();
-    
-    // Initialize magnitude slider
-    const magSlider = document.getElementById('magnitude-slider-3d');
-    if (magSlider && window.noUiSlider) {
-        noUiSlider.create(magSlider, {
-            start: [-2, 10.0],
-            connect: true,
-            range: { min: -2, max: 10.0 },
-            step: 0.1
-        });
-
-        magSlider.noUiSlider.on('update', (values) => {
-            document.getElementById('mag-min-val-3d').textContent = parseFloat(values[0]).toFixed(1);
-            document.getElementById('mag-max-val-3d').textContent = parseFloat(values[1]).toFixed(1);
-        });
-    }
-
-    // Load initial earthquakes
-        loadEarthquakes({ catalog: 2 });
-        
-        //  Setup catalog change listener
-        const catalogSelect = document.getElementById('catalog-select-3d');
-        if (catalogSelect) {
-            catalogSelect.addEventListener('change', (e) => {
-                loadEarthquakes({ catalog: e.target.value });
-            });
-        }
-    });
-    
-    // Initialize date pickers
-    if (window.flatpickr) {
-        flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
-        flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
-    }
-
-/* Click handler */
 let currentPopup = null;
 
-const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-handler.setInputAction((click) => {
-    // Remove existing popup safely
+function onLeftClick(click) {
+    if (!viewer) return;
+    
     if (currentPopup && document.body.contains(currentPopup)) {
         document.body.removeChild(currentPopup);
     }
@@ -687,24 +1026,19 @@ handler.setInputAction((click) => {
             const entity = pickedObject.id;
             const p = entity.properties;
             
-            // Get cartesian position
             const cartesian = entity.position.getValue(Cesium.JulianDate.now());
             
-            // Get lat/lon for display
             const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
             const longitude = Cesium.Math.toDegrees(cartographic.longitude);
             const latitude = Cesium.Math.toDegrees(cartographic.latitude);
             
-            // Format date/time in UTC
             const date = new Date(p.origin_time._value);
             const dateStr = date.toISOString().split('T')[0];
             const timeStr = date.toISOString().split('T')[1].slice(0, 8);
             
-            // Use click position directly
             const x = click.position.x;
             const y = click.position.y;
             
-            // Create popup
             currentPopup = document.createElement('div');
             currentPopup.style.cssText = `
                 position: fixed;
@@ -761,7 +1095,6 @@ handler.setInputAction((click) => {
                 </div>
             `;
             
-            // Add close button handler
             const closeBtn = currentPopup.querySelector('.cesium-popup-close');
             closeBtn.onclick = () => {
                 if (currentPopup && document.body.contains(currentPopup)) {
@@ -773,14 +1106,217 @@ handler.setInputAction((click) => {
             document.body.appendChild(currentPopup);
         }
     }
-}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+}
 
 
+// ===========================================================================
+// REAL-TIME SPATIAL PREVIEW  Helper Functions
+// ============================================================================
+
+function initSpatialInputs3D() {
+    const minLatInput = document.getElementById('min-lat-3d');
+    const maxLatInput = document.getElementById('max-lat-3d');
+    const minLonInput = document.getElementById('min-lon-3d');
+    const maxLonInput = document.getElementById('max-lon-3d');
+    
+    // Debounced preview function
+    const debouncedPreview = () => {
+        clearTimeout(previewDebounceTimer);
+        previewDebounceTimer = setTimeout(() => {
+            previewSpatialBounds3D();
+        }, 200); // 200ms delay for smooth typing
+    };
+    
+    if (minLatInput) minLatInput.addEventListener('input', debouncedPreview);
+    if (maxLatInput) maxLatInput.addEventListener('input', debouncedPreview);
+    if (minLonInput) minLonInput.addEventListener('input', debouncedPreview);
+    if (maxLonInput) maxLonInput.addEventListener('input', debouncedPreview);
+}
+
+function previewSpatialBounds3D() {
+    const minLatInput = document.getElementById('min-lat-3d');
+    const maxLatInput = document.getElementById('max-lat-3d');
+    const minLonInput = document.getElementById('min-lon-3d');
+    const maxLonInput = document.getElementById('max-lon-3d');
+
+    // Parse values
+    let minLat = parseFloat(minLatInput.value);
+    let maxLat = parseFloat(maxLatInput.value);
+    let minLon = parseFloat(minLonInput.value);
+    let maxLon = parseFloat(maxLonInput.value);
+
+    // Only draw if all 4 are valid numbers
+    if (isNaN(minLat) || isNaN(maxLat) || isNaN(minLon) || isNaN(maxLon)) {
+        clearSpatialBoundary();
+        return;
+    }
+
+    // Auto-swap logic (Visual preview only)
+    if (minLat > maxLat) [minLat, maxLat] = [maxLat, minLat];
+    if (minLon > maxLon) [minLon, maxLon] = [maxLon, minLon];
+
+    // Call existing drawer
+    drawSpatialBoundary(minLon, minLat, maxLon, maxLat);
+    console.log(`📐 Previewing bounds: ${minLat}, ${minLon} to ${maxLat}, ${maxLon}`);
+}
 
 
-// Initialize
-addCascadiaBoundary();
-await loadCfm3D();
-loadEarthquakes({ catalog: 2 });
+// ============================================================================
+// MAIN INITIALIZATION (runs after DOM + container ready)
+// ============================================================================
+
+async function main() {
+    // 1. Initialize Viewer
+    await initViewer();
+    
+    // 2. Force initial satellite imagery load (using the fixed Ion Asset 2)
+    await window.setTerrainModeFromSelect('satellite');
+    
+    // 3. Initialize Camera Status Display
+    cameraStatusEl = document.getElementById('camera-status');
+    window.addEventListener('resize', () => {
+        try { updateCameraStatus(); } catch (_) {}
+    });
+
+    // 4. Configure Camera Controller (Zoom/Tilt limits)
+    const c = viewer.scene.screenSpaceCameraController;
+    c.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
+    c.zoomFactor = 0.25;
+    c.minimumPitch = Cesium.Math.toRadians(-89.0);
+    c.maximumPitch = Cesium.Math.toRadians(-10.0);
+    c.minimumZoomDistance = 20000.0;   // prevents diving inside slab
+    c.maximumZoomDistance = 4.0e7;     // allows full regional pullback
+    c.enableLook = false;
+    c.enableTilt = true;
+    c.enableRotate = true;
+    c.enableTranslate = true;
+    c.inertiaSpin = 0.7;
+    c.inertiaTranslate = 0.7;
+    c.inertiaZoom = 0.7;
+
+    // Disable double-click zoom
+    viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+    // Update status on move
+    viewer.camera.changed.addEventListener(updateCameraStatus);
+    updateCameraStatus();
+
+    // 5. Set Initial Camera View (Targeting Cascadia Center with Tilt)
+    const cascCenterLon = (CASCADIA_BOUNDS.west + CASCADIA_BOUNDS.east) / 2.0;
+    const cascCenterLat = (CASCADIA_BOUNDS.south + CASCADIA_BOUNDS.north) / 2.0;
+
+    const cascadiaTarget = Cesium.Cartesian3.fromDegrees(
+        cascCenterLon,
+        cascCenterLat,
+        0.0
+    );
+
+    // Define oblique camera offset (CFM-style)
+    const obliqueOffset = new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(35.0),   // heading (rotates map)
+        Cesium.Math.toRadians(-38.0),  // pitch (tilt)
+        3000000                        // range (distance)
+    );
+
+    // Apply lookAt then release it so user can move freely
+    viewer.camera.lookAt(cascadiaTarget, obliqueOffset);
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+
+    // 6. Add Visual Elements
+    addCascadiaBoundary();
+
+    // 7. Setup Click Handler (Popups)
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // 8. Initialize UI Components
+    
+    // Depth Slider
+    const depthSlider = document.getElementById('depth-slider-3d');
+    if (depthSlider && window.noUiSlider) {
+        noUiSlider.create(depthSlider, {
+            start: [0, 100],
+            connect: true,
+            range: { min: 0, max: 100 },
+            step: 1
+        });
+        depthSlider.noUiSlider.on('update', (values) => {
+            document.getElementById('depth-min-val-3d').textContent = Math.round(values[0]);
+            document.getElementById('depth-max-val-3d').textContent = Math.round(values[1]);
+        });
+    }
+    
+    // Depth Settings Panel Logic
+    initDepthSettings3D();
+    
+    // Magnitude Slider
+    const magSlider = document.getElementById('magnitude-slider-3d');
+    if (magSlider && window.noUiSlider) {
+        noUiSlider.create(magSlider, {
+            start: [-2, 10.0],
+            connect: true,
+            range: { min: -2, max: 10.0 },
+            step: 0.1
+        });
+        magSlider.noUiSlider.on('update', (values) => {
+            document.getElementById('mag-min-val-3d').textContent = parseFloat(values[0]).toFixed(1);
+            document.getElementById('mag-max-val-3d').textContent = parseFloat(values[1]).toFixed(1);
+        });
+    }
+
+    // Circle Size Slider
+    const circleSizeSlider = document.getElementById('circle-size-slider-3d');
+    if (circleSizeSlider && window.noUiSlider) {
+        noUiSlider.create(circleSizeSlider, {
+            start: [3.0],
+            connect: [true, false],
+            range: { min: 1.0, max: 10.0 },
+            step: 0.5
+        });
+
+        circleSizeSlider.noUiSlider.on('update', (values) => {
+            const size = parseFloat(values[0]);
+            document.getElementById('circle-size-val-3d').textContent = size.toFixed(1);
+            
+            if (viewer) {
+                viewer.entities.values
+                    .filter(e => e.id && e.id.toString().startsWith('earthquake-'))
+                    .forEach(entity => {
+                        if (entity.point) {
+                            entity.point.pixelSize = size;
+                        }
+                    });
+            }
+        });
+    }
+
+    // ---Initialize the Spatial Input Listeners (Real-time Preview) ---
+    initSpatialInputs3D(); 
+
+    //  Load Data
+    await loadDefaultLayers();
+    loadEarthquakes({ catalog: 2 });
+    
+    // Setup HTML Event Listeners
+    const catalogSelect = document.getElementById('catalog-select-3d');
+    if (catalogSelect) {
+        catalogSelect.addEventListener('change', (e) => {
+            loadEarthquakes({ catalog: e.target.value });
+        });
+    }
+    
+    if (window.flatpickr) {
+        flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
+        flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
+    }
+    
+    console.log('✅ 3D viewer fully initialized and ready');
+} 
+
+
+main().catch(err => {
+    console.error('❌ Cesium init failed:', err);
+    alert('Failed to initialize 3D viewer. Check console for details.');
+});
 
 export { viewer, loadEarthquakes };

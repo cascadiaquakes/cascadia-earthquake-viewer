@@ -18,15 +18,22 @@
     <link rel="stylesheet" href="/src/style.css">
 
     <style>
-        /* 3D-specific overrides */
-        body {
+        /* =========================================================
+           Base layout
+           ========================================================= */
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             overflow: hidden;
         }
         
         #cesiumContainer {
-            position: absolute;
-            inset: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         .cesium-selection-wrapper,
@@ -35,14 +42,16 @@
             display: none !important;
         }
 
-        /* Header for 3D */
+        /* =========================================================
+           Header - navigation and terrain mode toggle
+           ========================================================= */
         .header-3d {
             position: absolute;
             top: 20px;
             left: 20px;
-            width: 280px;  /* Match sidebar width */
+            width: 280px;
             display: flex;
-            justify-content: space-between;  /* Changed from gap */
+            justify-content: space-between;
             align-items: center;
             z-index: 100;
         }
@@ -94,10 +103,12 @@
         .toggle-option.active {
             background: white;
             color: #0b4a53;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* Sidebar positioning for 3D */
+        /* =========================================================
+           Sidebar
+           ========================================================= */
         .sidebar-container {
             position: absolute;
             top: 80px;
@@ -107,6 +118,7 @@
             overflow-y: auto;
             z-index: 90;
             padding-bottom: 20px;
+            pointer-events: auto;
         }
 
         .sidebar-container::-webkit-scrollbar {
@@ -119,10 +131,80 @@
         }
 
         /* =========================================================
-        3D FOOTER 
-        ========================================================= */
+           Layer controls
+           ========================================================= */
+        .layer-controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding-top: 4px;
+        }
 
-        /* Footer container: centered legend */
+        .layer-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px;
+            transition: all 0.15s;
+            border-radius: 6px;
+        }
+
+        .layer-checkbox-item:hover {
+            background: rgba(14, 116, 144, 0.05);
+        }
+
+        .layer-checkbox-item input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #0e7490;
+            margin: 0;
+        }
+
+        .layer-checkbox-item label {
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            color: #334155;
+            user-select: none;
+            line-height: 1.2;
+        }
+
+        /* =========================================================
+           Camera view buttons
+           ========================================================= */
+        .view-buttons {
+            display: flex;
+            gap: 6px;
+            padding-top: 8px;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 6px 10px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .view-btn:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+
+        .view-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* =========================================================
+           Footer - depth legend
+           ========================================================= */
         .footer-container {
             position: fixed;
             left: 0;
@@ -136,13 +218,11 @@
             z-index: 120;
         }
 
-        /* Depth legend panel (center) */
         .footer-container .legend-panel {
             pointer-events: auto;
             max-width: calc(100vw - 360px);
         }
 
-        /* Right-side CRESCENT logo (pinned to viewport) */
         .logo-area-3d {
             position: fixed;
             right: 12px;
@@ -152,7 +232,6 @@
             z-index: 130;
         }
 
-        /* Logo image sizing */
         .logo-area-3d img {
             height: 44px;
             width: auto;
@@ -163,30 +242,30 @@
             margin-left: auto;
         }
 
-        /* Subtitle under logo */
         .logo-sub-3d {
             font-size: 10px;
-            color: rgba(255,255,255,0.8);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
             margin-top: 2px;
             white-space: nowrap;
         }
 
-        /* 3D "Zoom" label */
         .camera-status {
             position: fixed;
             right: 12px;
             bottom: 78px;
             padding: 4px 8px;
             font-size: 11px;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             color: #fff;
             border-radius: 4px;
             z-index: 130;
             pointer-events: none;
         }
 
-        /* ---------- 3D LEGEND TOGGLE BUTTON ---------- */
+        /* =========================================================
+        Legend toggle button
+        ========================================================= */
         .btn-legend-toggle-3d {
             position: fixed;
             right: 15px;
@@ -194,40 +273,61 @@
             z-index: 99999;
             pointer-events: auto;
 
-            background: rgba(200, 240, 255, 0.15);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.30);
-            padding: 7px 10px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 12px;
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            border-radius: 14px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            /* OFF STATE: Dark Glass (Transparent) */
+            background: rgba(15, 23, 42, 0.6);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+
             cursor: pointer;
-            backdrop-filter: blur(10px);
-
-            transition: transform 120ms ease, background 120ms ease, 
-                        border-color 120ms ease, box-shadow 120ms ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
         }
 
+        .btn-legend-toggle-3d svg {
+            width: 20px;
+            height: 20px;
+            display: block;
+            fill: currentColor;
+            pointer-events: none;
+        }
+
+        /* Hover when OFF */
         .btn-legend-toggle-3d:hover {
-            background: rgba(255, 255, 255, 0.22);
-            border-color: rgba(255, 255, 255, 0.45);
+            background: rgba(15, 23, 42, 0.8);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-1px);
-            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
         }
 
-        .btn-legend-toggle-3d:active {
-            transform: scale(0.97);
-            box-shadow: none;
-        }
-
+        /* ON STATE: Bright White Box */
         .btn-legend-toggle-3d.is-active {
-            background: rgba(255, 255, 255, 0.30);
-            border-color: rgba(255, 255, 255, 0.55);
-            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+            background: rgba(255, 255, 255, 0.95);
+            color: #0e7490; /* Cyan Icon */
+            border: 1px solid rgba(14, 116, 144, 0.2);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(12px);
         }
 
-        /* ---------- LEGEND PANEL TOGGLE STATES ---------- */
-        /* Target only the legend panel, not the logo */
+        /* Hover when ON */
+        .btn-legend-toggle-3d.is-active:hover {
+            background: #ffffff;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+            transform: translateY(-1px);
+        }
+
+        /* =========================================================
+           Legend panel visibility
+           ========================================================= */
         #depth-legend-3d {
             transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
         }
@@ -244,26 +344,9 @@
             visibility: visible;
         }
 
-        /* Responsive behavior */
-        @media (max-width: 780px) {
-            .footer-container { bottom: 70px; }
-        }
-
-        @media (max-width: 560px) {
-            .logo-sub-3d { display: none; }
-        }
-
-        @media (max-width: 360px) {
-            .logo-area-3d { display: none; }
-            .camera-status { display: none; }
-        }
-
-
         /* =========================================================
-        3D LEGEND PANEL STYLING (here we must override/supplement style.css)
-        ========================================================= */
-
-        /* Legend panel container */
+           Legend panel styling
+           ========================================================= */
         .footer-container .panel {
             display: flex;
             align-items: center;
@@ -274,7 +357,6 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
-        /* Legend title */
         .footer-container .legend-title {
             font-size: 11px;
             font-weight: 700;
@@ -285,7 +367,6 @@
             white-space: nowrap;
         }
 
-        /* Gradient container - stacked vertically */
         .footer-container .legend-gradient-container {
             display: flex;
             flex-direction: column;
@@ -293,7 +374,6 @@
             gap: 6px;
         }
 
-        /* Gradient bar */
         .footer-container .legend-gradient {
             width: 120px;
             height: 10px;
@@ -307,7 +387,6 @@
             box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.10);
         }
 
-        /* Labels under gradient */
         .footer-container .legend-labels {
             width: 120px;
             display: flex;
@@ -318,20 +397,42 @@
             line-height: 1;
         }
 
+        /* =========================================================
+           Responsive breakpoints
+           ========================================================= */
+        @media (max-width: 780px) {
+            .footer-container { 
+                bottom: 70px; 
+            }
+        }
 
-        
+        @media (max-width: 560px) {
+            .logo-sub-3d { 
+                display: none; 
+            }
+        }
+
+        @media (max-width: 360px) {
+            .logo-area-3d,
+            .camera-status { 
+                display: none; 
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loading-overlay">
+    <!-- Loading overlay -->
+    <div class="loading-overlay active" id="loading-overlay">
         <div class="loading-spinner">
             <div class="spinner"></div>
-            <div class="loading-text">Loading earthquakes...</div>
+            <div class="loading-text">Loading 3D viewer...</div>
         </div>
     </div>
 
+    <!-- Main 3D viewer container -->
     <div id="cesiumContainer"></div>
 
+    <!-- Header navigation and mode toggle -->
     <header class="header-3d">
         <a href="/index.html" class="btn-back">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -341,32 +442,84 @@
             2D Map
         </a>
 
+        <!-- Terrain mode toggle (Dark mode active by default) -->
         <div class="toggle-container">
-            <div class="toggle-option active" id="opt-sat" onclick="uiSetMode('satellite')">Satellite</div>
-            <div class="toggle-option" id="opt-dark" onclick="uiSetMode('dark')">Dark</div>
+            <div class="toggle-option" id="opt-sat" onclick="uiSetMode('satellite')">Satellite</div>
+            <div class="toggle-option active" id="opt-dark" onclick="uiSetMode('dark')">Dark</div>
         </div>
     </header>
 
+    <!-- Sidebar with filters and controls -->
     <div class="sidebar-container">
+        <!-- Filters panel -->
         <div class="glass-panel" id="filters-panel">
             <div class="panel-header">Catalog & Filters</div>
             
+            <!-- Catalog selection -->
             <div class="filter-group-clean">
                 <label class="label-clean catalog-label">Catalog</label>
                 <select id="catalog-select-3d" class="select-clean">
-                    <option value="2">Bostock et al. 2015 — LFE (269K)</option>
-                    <option value="12">Plourde et al. 2015 — Southern Cascadia (6K)</option>
-                    <option value="11">Stone et al. 2018 — Offshore (237)</option>
-                    <option value="16">Wech 2021 — Cascadia Tremor (740K)</option>
-                    <option value="6">Merrill et al. 2022 — Nootka Fault (92K)</option>
-                    <option value="15">Ducellier & Creager 2022 — Southern Cascadia (478K)</option>
-                    <option value="7">Morton et al. 2023 — Cascadia Subduction (5K)</option>
-                    <option value="5">Littel et al. 2023 — Queen Charlotte (18K)</option>
-                    <option value="8">Shelly et al. 2025 — LFE (61K)</option>
-                    <option value="4">Hirao et al. 2025 — Mt St Helens (31K)</option>
+                    <option value="2">Bostock et al. (2015) — Southern Vancouver Island LFEs (259K)</option>
+                    <option value="12">Plourde et al. (2015) — Southern Cascadia LFEs (6K)</option>
+                    <option value="11">Stone et al. (2018) — Offshore Cascadia Tectonic EQs (237)</option>
+                    <option value="16">Wech (2021) — Cascadia Tremor (740K)</option>
+                    <option value="6">Merrill et al. (2022) — Nootka Fault Tectonic EQs (109K)</option>
+                    <option value="15">Ducellier & Creager (2022) — Southern Cascadia LFEs (478K)</option>
+                    <option value="7">Morton et al. (2023) — Cascadia Subduction Tectonic EQs (5K)</option>
+                    <option value="5">Littel et al. (2023) — Queen Charlotte Tectonic EQs (18K)</option>
+                    <option value="8">Shelly et al. (2025) — Mendocino Triple Junction LFEs (61K)</option>
+                    <option value="4">Hirao et al. (2025) — Mt. St. Helens Volcanic EQs (31K)</option>
                 </select>
             </div>
 
+            <!-- Layer visibility controls (collapsible) -->
+            <details class="filter-section simple" open>
+                <summary class="filter-header">Show/Hide Layers</summary>
+                <div class="filter-content">
+                    <div class="layer-controls-grid">
+                        <div class="layer-checkbox-item">
+                            <input type="checkbox" id="toggle-cfm-traces" checked onchange="window.toggleCFMTraces(this.checked)">
+                            <label for="toggle-cfm-traces">CFM Traces</label>
+                        </div>
+
+                        <div class="layer-checkbox-item">
+                            <input type="checkbox" id="toggle-cfm-surfaces" checked onchange="window.toggleCFMSurfaces(this.checked)">
+                            <label for="toggle-cfm-surfaces">CFM Surfaces</label>
+                        </div>
+
+                        <div class="layer-checkbox-item">
+                            <input type="checkbox" id="toggle-2d-surfaces" checked onchange="window.toggle2DSurfaces(this.checked)">
+                            <label for="toggle-2d-surfaces">2D Surfaces</label>
+                        </div>
+
+                        <div class="layer-checkbox-item">
+                            <input type="checkbox" id="toggle-boundaries" checked onchange="window.togglePoliticalBoundaries(this.checked)">
+                            <label for="toggle-boundaries">Boundaries</label>
+                        </div>
+                    </div>
+
+                    <!-- Camera view buttons -->
+                    <div class="view-buttons">
+                        <button class="view-btn" onclick="window.setCameraView('centered')">Centered View</button>
+                        <button class="view-btn" onclick="window.setCameraView('tilted')">Tilted View</button>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Circle size control -->
+            <details class="filter-section" open>
+                <summary class="filter-header">
+                    Circle Size
+                    <span class="filter-badge">
+                        <span id="circle-size-val-3d">3.0</span> px
+                    </span>
+                </summary>
+                <div class="filter-content">
+                    <div id="circle-size-slider-3d" class="slider"></div>
+                </div>
+            </details>
+
+            <!-- Depth range filter -->
             <details class="filter-section" open>
                 <summary class="filter-header">
                     Depth Range
@@ -379,6 +532,7 @@
                 </div>
             </details>
 
+            <!-- Magnitude filter -->
             <details class="filter-section" open>
                 <summary class="filter-header">
                     Magnitude
@@ -391,6 +545,7 @@
                 </div>
             </details>
 
+            <!-- Date range filter -->
             <details class="filter-section simple">
                 <summary class="filter-header">Date Range</summary>
                 <div class="filter-content">
@@ -407,6 +562,7 @@
                 </div>
             </details>
 
+            <!-- Spatial bounds filter -->
             <details class="filter-section simple">
                 <summary class="filter-header">Spatial Bounds</summary>
                 <div class="filter-content">
@@ -431,6 +587,7 @@
                 </div>
             </details>
 
+            <!-- Filter action buttons -->
             <div class="filter-actions">
                 <button id="show-all-3d" class="btn-show-all">Show All Events</button>
                 <div class="filter-actions-row">
@@ -440,6 +597,7 @@
             </div>
         </div>
 
+        <!-- Export panel -->
         <div class="glass-panel export-panel">
             <div class="panel-header">Export Data</div>
             <div class="export-buttons">
@@ -450,14 +608,19 @@
                     <span class="export-icon">📊</span> CSV
                 </button>
             </div>
-            <div class="export-hint">Downloads filtered earthquakes in current map view</div>
+            <div class="export-hint">Downloads currently loaded earthquakes (up to 2,000 events)</div>
         </div>
     </div>
 
-    <!-- 3D Legend Toggle Button -->
-    <button class="btn-legend-toggle-3d" id="toggle-legend-3d">Legend</button>
+    <button type="button" class="btn-legend-toggle-3d" id="toggle-legend-3d" title="Depth Legend">
+        <svg viewBox="0 0 24 24">
+            <path d="M4 4h7v7H4V4zm0 9h7v7H4v-7zm9-9h7v7h-7V4zm0 9h7v7h-7v-7z" fill="currentColor"/>
+        </svg>
+    </button>
 
+    <!-- Footer with depth legend and branding -->
     <div class="footer-container">
+        <!-- Depth legend panel -->
         <div class="panel legend-panel" id="depth-legend-3d">
             <div class="legend-header-row">
                 <div class="legend-title">Depth (km)</div>
@@ -478,7 +641,7 @@
             </div>
         </div>
         
-        <!-- Settings Panel (hidden by default) -->
+        <!-- Depth settings panel (hidden by default) -->
         <div class="depth-settings-panel" id="depth-settings-panel-3d">
             <div class="settings-header">Depth Scale Settings</div>
             <div class="settings-content">
@@ -503,15 +666,22 @@
                 <button class="btn-reset-auto" id="reset-depth-auto-3d">Reset to Auto</button>
             </div>
         </div>
+
+        <!-- Project branding -->
         <div class="logo-area-3d">
             <img src="/src/resources/Crescent_Logo.png" alt="CRESCENT">
             <div class="logo-sub-3d">Interactive 3D Catalog</div>
         </div>
     </div>
 
+    <!-- Camera zoom level display -->
     <div id="camera-status" class="camera-status">Zoom: --</div>
 
+    <!-- UI interaction scripts -->
     <script>
+        /**
+         * Switches between Satellite and Dark terrain modes
+         */
         function uiSetMode(mode) {
             document.querySelectorAll('.toggle-option').forEach(el => el.classList.remove('active'));
             if (mode === 'satellite') document.getElementById('opt-sat').classList.add('active');
@@ -519,46 +689,48 @@
             if (window.setTerrainModeFromSelect) window.setTerrainModeFromSelect(mode);
         }
 
-        // Button handlers
+        /**
+         * Initialize UI event handlers after DOM loads
+         */
         document.addEventListener('DOMContentLoaded', () => {
+            // Filter button handlers
             document.getElementById('show-all-3d').addEventListener('click', () => {
                 if (window.showAllEvents3D) window.showAllEvents3D();
             });
+            
             document.getElementById('reset-filters-3d').addEventListener('click', () => {
                 if (window.resetFilters3D) window.resetFilters3D();
             });
+            
             document.getElementById('apply-filters-3d').addEventListener('click', () => {
                 if (window.applyFilters3D) window.applyFilters3D();
             });
 
-            // Legend toggle for 3D - target ONLY the legend panel, not the logo
+            // Legend toggle button logic
             const legendPanel = document.getElementById('depth-legend-3d');
             const toggleBtn3d = document.getElementById('toggle-legend-3d');
 
             if (legendPanel && toggleBtn3d) {
-                // Default state
-                if (window.innerWidth <= 760) {
-                    legendPanel.classList.add('is-closed');
-                } else {
-                    legendPanel.classList.add('is-open');
-                }
+                // Set default state based on screen width
+                const startOpen = window.innerWidth > 760;
+                legendPanel.classList.toggle('is-open', startOpen);
+                legendPanel.classList.toggle('is-closed', !startOpen);
+                toggleBtn3d.classList.toggle('is-active', startOpen);
 
+                // Toggle on button click
                 toggleBtn3d.addEventListener('click', () => {
-                    if (legendPanel.classList.contains('is-open')) {
-                        legendPanel.classList.remove('is-open');
-                        legendPanel.classList.add('is-closed');
-                        toggleBtn3d.classList.add('is-active');
-                    } else {
-                        legendPanel.classList.remove('is-closed');
-                        legendPanel.classList.add('is-open');
-                        toggleBtn3d.classList.remove('is-active');
-                    }
+                    const open = legendPanel.classList.contains('is-open');
+
+                    legendPanel.classList.toggle('is-open', !open);
+                    legendPanel.classList.toggle('is-closed', open);
+
+                    toggleBtn3d.classList.toggle('is-active', !open);
                 });
             }
         });
-
     </script>
 
+    <!-- Load Cesium 3D module -->
     <script type="module" src="/src/cesium3d.js"></script>
 </body>
 </html>

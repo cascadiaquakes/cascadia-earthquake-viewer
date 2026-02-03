@@ -1593,7 +1593,7 @@ details[open].catalog-info-section .catalog-info-header::before {
   width: 18px;
   height: 18px;
   display: block;
-  fill: currentColor;   /* your rects will fill with currentColor */
+  fill: currentColor;
   opacity: 0.95;
   pointer-events: none;
 }
