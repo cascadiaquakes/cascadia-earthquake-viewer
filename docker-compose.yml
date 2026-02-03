@@ -21,24 +21,18 @@ services:
       start_period: 30s
 
   api-eq:
-    build:
-      context: ./backend  # Added this - points to backend folder
-      dockerfile_inline: |
-        FROM node:18-alpine
-        WORKDIR /app
-        COPY package*.json ./
-        RUN npm install
-        COPY api.js ./
-        CMD ["node", "api.js"]
-    container_name: api-eq
-    restart: unless-stopped
-    ports:
-      - "3002:3002"
-    depends_on:
-      postgis-eq:
-        condition: service_healthy
-    networks:
-      - pgnet
+      build:
+        context: ./backend
+        dockerfile: Dockerfile
+      container_name: api-eq
+      restart: unless-stopped
+      ports:
+        - "3002:3002"
+      depends_on:
+        postgis-eq:
+          condition: service_healthy
+      networks:
+        - pgnet
 
   martin-eq:
     image: ghcr.io/maplibre/martin:latest
