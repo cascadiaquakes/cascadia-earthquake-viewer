@@ -150,7 +150,7 @@ class EarthquakeStack(Stack):
             self,
             "EqDistribution",
             domain_names=["eqcat.cascadiaquakes.org"],
-            certificate=cloudfront.Certificate.from_certificate_arn(
+            certificate=acm.Certificate.from_certificate_arn(
                 self,
                 "EqCert",
                 "arn:aws:acm:us-east-1:818214664804:certificate/7240596e-50ed-4c9f-bda5-491908c2583a"
