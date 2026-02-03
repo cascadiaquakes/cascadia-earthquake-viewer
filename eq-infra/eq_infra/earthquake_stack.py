@@ -3,6 +3,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_s3 as s3,
     aws_cloudfront as cloudfront,
+    aws_certificatemanager as acm,
     aws_cloudfront_origins as origins,
     aws_s3_deployment as s3_deployment,
     aws_iam as iam,
@@ -148,6 +149,12 @@ class EarthquakeStack(Stack):
         distribution = cloudfront.Distribution(
             self,
             "EqDistribution",
+            domain_names=["eqcat.cascadiaquakes.org"],
+            certificate=cloudfront.Certificate.from_certificate_arn(
+                self,
+                "EqCert",
+                "arn:aws:acm:us-east-1:818214664804:certificate/7240596e-50ed-4c9f-bda5-491908c2583a"
+            ),
             default_root_object="index.html",
             default_behavior=cloudfront.BehaviorOptions(
                 origin=s3_origin,
