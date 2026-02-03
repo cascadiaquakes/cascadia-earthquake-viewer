@@ -572,6 +572,11 @@ function hideLoading() {
 async function loadEarthquakes(filters = {}) {
     if (!viewer) return;
 
+    // Clean up existing earthquake entities FIRST (prevents memory buildup)
+    viewer.entities.values
+        .filter(e => e.id && e.id.toString().startsWith('earthquake-'))
+        .forEach(e => viewer.entities.remove(e));
+
     showLoading();
 
     const existingPopup = document.querySelector('.cesium-popup-close');
@@ -600,10 +605,6 @@ async function loadEarthquakes(filters = {}) {
 
         console.log(`📊 Loaded ${data.count} earthquakes`);
         currentEarthquakes = data.earthquakes;
-
-        viewer.entities.values
-            .filter(e => e.id && e.id.toString().startsWith('earthquake-'))
-            .forEach(e => viewer.entities.remove(e));
 
         // Get current circle size from slider
         const circleSizeSlider = document.getElementById('circle-size-slider-3d');
@@ -1320,3 +1321,15 @@ main().catch(err => {
 });
 
 export { viewer, loadEarthquakes };
+
+// Cleanup function - call when leaving 3D view
+export function cleanup3D() {
+    if (viewer) {
+        viewer.entities.removeAll();
+        viewer.dataSources.removeAll();
+        viewer.scene.primitives.removeAll();
+        viewer.destroy();
+        viewer = null;
+        console.log('✅ 3D viewer cleaned up');
+    }
+}
