@@ -179,7 +179,7 @@ function updateCameraStatus() {
 }
 
 // ============================================================================
-// CAMERA VIEW CONTROLS (FIXED: Matches Default View Logic)
+// CAMERA VIEW CONTROL
 // ============================================================================
 
 window.setCameraView = function(viewType) {
@@ -347,6 +347,8 @@ async function loadCFMSurfaces() {
         dataSource.entities.values.forEach(entity => {
             if (entity.polygon) {
                 entity.polygon.perPositionHeight = true;
+                entity.polygon.height = undefined; 
+                entity.polygon.extrudedHeight = undefined;
                 entity.polygon.material = Cesium.Color.MAGENTA.withAlpha(0.5);
                 entity.polygon.outline = true;
                 entity.polygon.outlineColor = Cesium.Color.MAGENTA;
