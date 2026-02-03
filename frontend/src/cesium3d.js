@@ -543,7 +543,7 @@ async function loadEarthquakes(filters = {}) {
     try {
         const params = new URLSearchParams({
             catalog: filters.catalog || 2,
-            limit: 500
+            limit: 2000
         });
 
         if (filters.minDepth !== undefined) params.append('minDepth', filters.minDepth);
