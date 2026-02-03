@@ -40,7 +40,7 @@
         </div>
         
         <div class="header-right">
-            <a href="/viewer3d.html" class="btn-glass">3D View →</a>
+            <a href="/viewer3d.html" class="btn-glass" onclick="cleanup2D()">3D View →</a>
             <span class="version-text">v1 • demo</span>
         </div>
     </header>
@@ -411,5 +411,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
     <script type="module" src="/main.js"></script>
+
+    <script>
+    function cleanup2D() {
+        // Destroy MapLibre map before switching to 3D
+        if (window.map) {
+            window.map.remove();
+            window.map = null;
+        }
+    }
+    </script>
 </body>
 </html>

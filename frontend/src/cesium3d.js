@@ -535,16 +535,17 @@ window.toggle2DSurfaces = function(show) {
 
 async function loadDefaultLayers() {
     const cfmTracesChecked = document.getElementById('toggle-cfm-traces')?.checked;
-    const cfmSurfacesChecked = document.getElementById('toggle-cfm-surfaces')?.checked;
-    const surfaces2DChecked = document.getElementById('toggle-2d-surfaces')?.checked;
+    const cfmSurfacesChecked = false;  //  FORCE FALSE (heavy layer)
+    const surfaces2DChecked = false;   //  FORCE FALSE (heavy layer)
     const boundariesChecked = document.getElementById('toggle-boundaries')?.checked;
 
     if (cfmTracesChecked) await loadCFMTraces();
-    if (cfmSurfacesChecked) await loadCFMSurfaces();
-    if (surfaces2DChecked) await load2DSurfaces();
+    // DON'T auto-load heavy layers:
+    // if (cfmSurfacesChecked) await loadCFMSurfaces();
+    // if (surfaces2DChecked) await load2DSurfaces();
     if (boundariesChecked) await loadPoliticalBoundaries();
 
-    console.log('✅ Default layers loaded');
+    console.log('✅ Default layers loaded (heavy layers disabled)');
 }
 
 // ============================================================================
