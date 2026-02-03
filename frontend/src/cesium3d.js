@@ -45,7 +45,7 @@ const TILTED_VIEW = {
 const DEPTH_EXAGGERATION = 0.0001;
 
 // CFM data URLs
-const CFM_SURFACE_URL = '/data/crescent_cfm_crustal_3d_3percent.json';
+const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/cascadia-earthquake-viewer/main/data/crescent_cfm_crustal_3d_3percent.json';
 const CFM_TRACE_URL_3D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 // 2D Surface (Subduction interface) URL
