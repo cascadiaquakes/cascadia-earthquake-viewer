@@ -4,33 +4,52 @@ services:
     container_name: postgis-eq
     restart: unless-stopped
     ports:
-      - "5490:5432"
+      - "5432:5432"  # Changed from 5490 to 5432 for AWS
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: gis
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - ./backend/pgdata:/var/lib/postgresql/data  # Changed path
     networks:
       - pgnet
     healthcheck:
-      # CHANGED: Check the default 'postgres' DB so the container stays alive
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
+  api-eq:
+    build:
+      context: ./backend  # Added this - points to backend folder
+      dockerfile_inline: |
+        FROM node:18-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm install
+        COPY api.js ./
+        CMD ["node", "api.js"]
+    container_name: api-eq
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgis-eq:
+        condition: service_healthy
+    networks:
+      - pgnet
+
   martin-eq:
     image: ghcr.io/maplibre/martin:latest
     container_name: martin-eq
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3000:3000"  # Changed from 3001 to 3000 for AWS
     environment:
       RUST_LOG: info
     volumes:
-      - ./config.yaml:/config/config.yaml:ro
+      - ./backend/config.yaml:/config/config.yaml:ro  # Changed path
     command: ["--config", "/config/config.yaml"]
     depends_on:
       postgis-eq:
