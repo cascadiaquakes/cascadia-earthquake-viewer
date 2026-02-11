@@ -135,12 +135,12 @@ async function initViewer() {
     scene.backgroundColor = Cesium.Color.BLACK;
 
     globe.show = true;
-    globe.baseColor = Cesium.Color.BLACK;
+    globe.baseColor = Cesium.Color.TRANSPARENT;
     globe.showGroundAtmosphere = false;
     globe.enableLighting = true;
     globe.depthTestAgainstTerrain = false; // REQUIRED for subsurface earthquakes
     globe.maximumScreenSpaceError = 1.0;
-    globe.frontFaceAlphaByDistance = new Cesium.NearFarScalar(50.0, 0.0, 100.0, 1.0);
+    globe.frontFaceAlphaByDistance = new Cesium.NearFarScalar(1e4, 0.0, 8e5, 1.0);
 
     scene.fog.enabled = false;
 
@@ -883,8 +883,8 @@ window.setTerrainModeFromSelect = async function(modeInput) {
         }
         
         // Adjust Globe settings for Satellite visibility
-        globe.show = true;
-        globe.baseColor = Cesium.Color.BLACK; 
+        globe.show = false;
+        globe.baseColor = Cesium.Color.TRANSPARENT; 
         globe.showGroundAtmosphere = true;
         // Important: Keep lighting FALSE for satellite so the map isn't dark at "night" time
         globe.enableLighting = false; 
@@ -896,9 +896,9 @@ window.setTerrainModeFromSelect = async function(modeInput) {
         imageryLayers.removeAll();
         
         globe.show = true;
-        globe.baseColor = Cesium.Color.BLACK;
+        globe.baseColor = Cesium.Color.TRANSPARENT;
         globe.showGroundAtmosphere = false;
-        globe.enableLighting = true; 
+        globe.enableLighting = false; 
         
         await loadPoliticalBoundaries();
         console.log('🌑 Switched to Dark mode');
