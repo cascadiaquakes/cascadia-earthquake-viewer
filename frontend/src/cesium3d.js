@@ -39,13 +39,39 @@ const TILTED_VIEW = {
 
 
 
-// Depth exaggeration for subsurface earthquake points
-// NOTE: Applied ONLY to earthquake depths for visualization clarity.
-// Terrain exaggeration remains at 1.0 to maintain geographic accuracy.
-const DEPTH_EXAGGERATION = 0.0001;
+// Vertical exaggeration factor for all subsurface geometry (earthquakes, slabs)
+const DEPTH_EXAGGERATION = 1.25;
 
-// CFM data URLs
-const CFM_SURFACE_URL = '/data/crescent_cfm_crustal_3d_3percent.json';
+// Extra downward offset ONLY for subduction interface (km)
+const SUBDUCTION_DEPTH_OFFSET_KM = 2.0;
+
+// Shallow embedding depth for CFM crustal fault surfaces (km)
+const CFM_CRUSTAL_BASE_DEPTH_KM = 3.0;
+
+
+// Central depth → height transform (meters)
+function depthKmToHeightMeters(depthKm, offsetKm = 0.0) {
+    // depthKm is positive downward
+    return -(depthKm + offsetKm) * 1000.0 * DEPTH_EXAGGERATION;
+}
+
+// DEPRECATED — DO NOT USE
+// Depth exaggeration is now applied explicitly in:
+//   - loadEarthquakes()
+//   - loadCFMSurfaces()
+//   - load2DSurfaces()
+// via depthKmToHeightMeters(...)
+function applyVerticalExaggerationToDataSource(dataSource) {
+    console.warn(
+        'applyVerticalExaggerationToDataSource() is deprecated and intentionally disabled. ' +
+        'Depth transforms are handled explicitly per-layer.'
+    );
+    return;
+}
+
+
+
+const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/crescent-cfm/main/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';
 const CFM_TRACE_URL_3D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 // 2D Surface (Subduction interface) URL
@@ -102,13 +128,14 @@ async function initViewer() {
         selectionIndicator: false,
         enableCollisionDetection: false,
         navigationInstructionsInitiallyVisible: false,
-        requestRenderMode: true,              
+        requestRenderMode: false,  // Continuous rendering - REQUIRED for immediate entity visibility           
         maximumRenderTimeChange: Infinity     
     });
 
     const scene = viewer.scene;
     const globe = scene.globe;
     const camera = scene.camera;
+    scene.globe.backFaceCulling = false;
 
     scene.backgroundColor = Cesium.Color.BLACK;
 
@@ -116,7 +143,7 @@ async function initViewer() {
     globe.baseColor = Cesium.Color.BLACK;
     globe.showGroundAtmosphere = false;
     globe.enableLighting = true;
-    globe.depthTestAgainstTerrain = true;
+    globe.depthTestAgainstTerrain = false; // REQUIRED for subsurface earthquakes
     globe.maximumScreenSpaceError = 1.0;
     globe.frontFaceAlphaByDistance = new Cesium.NearFarScalar(50.0, 0.0, 100.0, 1.0);
 
@@ -141,18 +168,21 @@ async function initViewer() {
         direction: new Cesium.Cartesian3(1, 0, 0)
     });
 
+    
     const scratchNormal = new Cesium.Cartesian3();
-    preRenderCallback = scene.preRender.addEventListener(function (scene, time) {
+    preRenderCallback = scene.preRender.addEventListener(function () {
         const surfaceNormal = globe.ellipsoid.geodeticSurfaceNormal(
             camera.positionWC,
             scratchNormal
         );
-        const negativeNormal = Cesium.Cartesian3.negate(surfaceNormal, surfaceNormal);
+        const negativeNormal = Cesium.Cartesian3.negate(surfaceNormal, scratchNormal);
+
         scene.light.direction = Cesium.Cartesian3.normalize(
-            Cesium.Cartesian3.add(negativeNormal, camera.rightWC, surfaceNormal),
+            Cesium.Cartesian3.add(negativeNormal, camera.rightWC, scene.light.direction),
             scene.light.direction
         );
     });
+
 
     console.log('✅ Cesium viewer initialized');
     return viewer;
@@ -185,11 +215,11 @@ function updateCameraStatus() {
 window.setCameraView = function(viewType) {
     if (!viewer) return;
 
-    // 1. Calculate the exact center of the Cascadia region (Same logic as main)
+    // Calculate the exact center of the Cascadia region (Same logic as main)
     const centerLon = (CASCADIA_BOUNDS.west + CASCADIA_BOUNDS.east) / 2.0;
     const centerLat = (CASCADIA_BOUNDS.south + CASCADIA_BOUNDS.north) / 2.0;
     
-    // 2. Create the target point (Ground level at center)
+    // Create the target point (Ground level at center)
     const target = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 0.0);
 
     if (viewType === 'centered') {
@@ -322,7 +352,7 @@ window.togglePoliticalBoundaries = function(show) {
 };
 
 // ============================================================================
-// CFM FAULT SURFACES & TRACES
+// CFM FAULT SURFACES (Crustal, true subsurface geometry — stable slab rendering)
 // ============================================================================
 
 let cfmSurfaceDataSource = null;
@@ -330,7 +360,7 @@ let cfmTraceDataSource = null;
 
 async function loadCFMSurfaces() {
     if (!viewer) return;
-    
+
     if (cfmSurfaceDataSource) {
         cfmSurfaceDataSource.show = true;
         console.log('✅ Showing CFM surfaces');
@@ -338,22 +368,50 @@ async function loadCFMSurfaces() {
     }
 
     try {
-        console.log('🔄 Loading CFM fault surfaces (simplified)...');
-        
-        const dataSource = await Cesium.GeoJsonDataSource.load(CFM_SURFACE_URL, {
-            clampToGround: false
-        });
+        console.log('🔄 Loading CFM fault surfaces (CFM crustal)...');
+
+        const dataSource = await Cesium.GeoJsonDataSource.load(
+            CFM_SURFACE_URL,
+            { clampToGround: false }
+        );
+
+        const now = Cesium.JulianDate.now();
 
         dataSource.entities.values.forEach(entity => {
-            if (entity.polygon) {
-                entity.polygon.perPositionHeight = true;
-                entity.polygon.height = undefined; 
-                entity.polygon.extrudedHeight = undefined;
-                entity.polygon.material = Cesium.Color.MAGENTA.withAlpha(0.5);
-                entity.polygon.outline = true;
-                entity.polygon.outlineColor = Cesium.Color.MAGENTA;
-                entity.polygon.outlineWidth = 1;
-            }
+            if (!entity.polygon || !entity.polygon.hierarchy) return;
+
+            const hierarchy = entity.polygon.hierarchy.getValue(now);
+            if (!hierarchy) return;
+
+            // ------------------------------------------------------------------
+            // Preserve per-vertex 3D depth from GeoJSON Z coordinates
+            // Apply depth exaggeration to each vertex individually
+            // ------------------------------------------------------------------
+            const exaggeratedPositions = hierarchy.positions.map(pos => {
+                const c = Cesium.Cartographic.fromCartesian(pos);
+                // GeoJSON Z is negative (below surface) — convert to positive depth in km
+                const depthKm = Math.max(0, -c.height / 1000.0);
+                return Cesium.Cartesian3.fromRadians(
+                    c.longitude,
+                    c.latitude,
+                    depthKmToHeightMeters(depthKm)
+                );
+            });
+
+            // Replace with new polygon entity using perPositionHeight
+            // (Remove old polygon properties that conflict)
+            entity.polygon = new Cesium.PolygonGraphics({
+                hierarchy: new Cesium.PolygonHierarchy(exaggeratedPositions),
+                perPositionHeight: true,
+                material: new Cesium.ColorMaterialProperty(
+                    Cesium.Color.MAGENTA.withAlpha(0.25)
+                ),
+                outline: true,
+                outlineColor: new Cesium.Color(0.7, 0.0, 0.7, 0.7),
+                outlineWidth: 1.0,
+                closeTop: true,
+                closeBottom: true
+            });
         });
 
         viewer.dataSources.add(dataSource);
@@ -364,6 +422,9 @@ async function loadCFMSurfaces() {
         console.error('❌ Failed to load CFM surfaces:', error);
     }
 }
+
+
+
 
 function hideCFMSurfaces() {
     if (cfmSurfaceDataSource) {
@@ -434,12 +495,11 @@ window.toggleCFMTraces = function(show) {
 // ============================================================================
 // 2D SURFACES (Subduction Interface)
 // ============================================================================
-
 let subductionDataSource = null;
 
 async function load2DSurfaces() {
     if (!viewer) return;
-    
+
     if (subductionDataSource) {
         subductionDataSource.show = true;
         console.log('✅ Showing 2D surfaces');
@@ -448,29 +508,55 @@ async function load2DSurfaces() {
 
     try {
         console.log('🔄 Loading 2D surfaces (subduction interface)...');
-        
-        const dataSource = await Cesium.GeoJsonDataSource.load(SUBDUCTION_INTERFACE_URL, {
-            clampToGround: false
-        });
+
+        const dataSource = await Cesium.GeoJsonDataSource.load(
+            SUBDUCTION_INTERFACE_URL,
+            { clampToGround: false }
+        );
+
+        const now = Cesium.JulianDate.now();
 
         dataSource.entities.values.forEach(entity => {
-            if (entity.polygon) {
-                entity.polygon.perPositionHeight = true;
-                entity.polygon.material = Cesium.Color.OLIVE.withAlpha(0.4);
-                entity.polygon.outline = true;
-                entity.polygon.outlineColor = Cesium.Color.YELLOW;
-                entity.polygon.outlineWidth = 2;
-            }
+            if (!entity.polygon || !entity.polygon.hierarchy) return;
+
+            const hierarchy = entity.polygon.hierarchy.getValue(now);
+            if (!hierarchy) return;
+
+            const exaggeratedPositions = hierarchy.positions.map(pos => {
+                const c = Cesium.Cartographic.fromCartesian(pos);
+                const depthKm = Math.max(0, -c.height / 1000.0);
+                return Cesium.Cartesian3.fromRadians(
+                    c.longitude,
+                    c.latitude,
+                    depthKmToHeightMeters(depthKm, SUBDUCTION_DEPTH_OFFSET_KM)
+                );
+            });
+
+            entity.polygon = new Cesium.PolygonGraphics({
+                hierarchy: new Cesium.PolygonHierarchy(exaggeratedPositions),
+                perPositionHeight: true,
+                material: new Cesium.ColorMaterialProperty(
+                    new Cesium.Color(0.95, 0.9, 0.35, 0.18)
+                ),
+                outline: true,
+                outlineColor: new Cesium.Color(0.95, 0.9, 0.35, 0.35),
+
+                outlineWidth: 1.5,
+                closeTop: true,
+                closeBottom: true
+            });
         });
 
         viewer.dataSources.add(dataSource);
         subductionDataSource = dataSource;
 
-        console.log('✅ 2D surfaces loaded');
+        console.log('✅ 2D surfaces loaded (with depth exaggeration)');
     } catch (error) {
         console.error('❌ Failed to load 2D surfaces:', error);
     }
 }
+
+
 
 function hide2DSurfaces() {
     if (subductionDataSource) {
@@ -478,13 +564,14 @@ function hide2DSurfaces() {
     }
 }
 
-window.toggle2DSurfaces = function(show) {
+window.toggle2DSurfaces = function (show) {
     if (show) {
         load2DSurfaces();
     } else {
         hide2DSurfaces();
     }
 };
+
 
 // ============================================================================
 // INITIALIZE DEFAULT LAYERS (auto-load checked items)
@@ -579,9 +666,10 @@ async function loadEarthquakes(filters = {}) {
                     Cesium.Cartesian3.fromDegrees(
                         eq.longitude,
                         eq.latitude,
-                        -eq.depth * 1000.0 * DEPTH_EXAGGERATION
+                        depthKmToHeightMeters(eq.depth)
                     )
-                ),
+                )
+                ,
                 point: {
                     pixelSize: currentSize,
                     color: getColorByDepth(eq.depth),
@@ -609,16 +697,21 @@ async function loadEarthquakes(filters = {}) {
         }
 
         console.log('✅ Earthquakes rendered');
-        
+
         window.currentEarthquakes3D = data.earthquakes;
         updateDepthScale3D(data.earthquakes);
+
         
+
+
+
     } catch (error) {
         console.error('❌ Error loading earthquakes:', error);
     } finally {
         hideLoading();
     }
 }
+
 
 function renderEarthquakesWithDepthColors(earthquakes, minDepth, maxDepth) {
     if (!earthquakes || !viewer) return;
@@ -765,7 +858,7 @@ function clearSpatialBoundary() {
 }
 
 // ============================================================================
-// TERRAIN / BASEMAP MODE SWITCHER (RESTORED TO ION ASSET 2)
+// TERRAIN / BASEMAP MODE SWITCHER
 // ============================================================================
 
 let currentMode = 'satellite';
@@ -784,8 +877,7 @@ window.setTerrainModeFromSelect = async function(modeInput) {
         imageryLayers.removeAll();
         
         try {
-            // RESTORED: This is the method from your first code that worked.
-            // Asset ID 2 is the default Satellite imagery (Bing Maps Aerial)
+    
             const satelliteImagery = await Cesium.IonImageryProvider.fromAssetId(2);
             imageryLayers.addImageryProvider(satelliteImagery);
             
@@ -795,7 +887,7 @@ window.setTerrainModeFromSelect = async function(modeInput) {
             console.error("❌ Failed to load Satellite imagery:", error);
         }
         
-        // 2. Adjust Globe settings for Satellite visibility
+        // Adjust Globe settings for Satellite visibility
         globe.show = true;
         globe.baseColor = Cesium.Color.BLACK; 
         globe.showGroundAtmosphere = true;
@@ -805,7 +897,7 @@ window.setTerrainModeFromSelect = async function(modeInput) {
         hidePoliticalBoundaries();
         
     } else {
-        // Dark mode / Vector mode (No changes here)
+        // Dark mode / Vector mode
         imageryLayers.removeAll();
         
         globe.show = true;
@@ -1127,6 +1219,7 @@ function previewSpatialBounds3D() {
 async function main() {
     // 1. Initialize Viewer
     await initViewer();
+    hideLoading(); 
     
     // 2. Force initial satellite imagery load (using the fixed Ion Asset 2)
     await window.setTerrainModeFromSelect('satellite');
@@ -1140,7 +1233,7 @@ async function main() {
     // 4. Configure Camera Controller (Zoom/Tilt limits)
     const c = viewer.scene.screenSpaceCameraController;
     c.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
-    c.zoomFactor = 0.25;
+    c.zoomFactor = 0.6;
     c.minimumPitch = Cesium.Math.toRadians(-89.0);
     c.maximumPitch = Cesium.Math.toRadians(-10.0);
     c.minimumZoomDistance = 20000.0;   // prevents diving inside slab
@@ -1151,7 +1244,7 @@ async function main() {
     c.enableTranslate = true;
     c.inertiaSpin = 0.7;
     c.inertiaTranslate = 0.7;
-    c.inertiaZoom = 0.7;
+    c.inertiaZoom = 0.3;
 
     // Disable double-click zoom
     viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
@@ -1188,8 +1281,6 @@ async function main() {
     clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     clickHandler.setInputAction(onLeftClick, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
- 
-    
     // Depth Slider
     const depthSlider = document.getElementById('depth-slider-3d');
     if (depthSlider && window.noUiSlider) {
@@ -1249,30 +1340,44 @@ async function main() {
         });
     }
 
-    // ---Initialize the Spatial Input Listeners (Real-time Preview) ---
-    initSpatialInputs3D(); 
+// Initialize the Spatial Input Listeners (Real-time Preview)
+initSpatialInputs3D();
 
-    //  Load Data
-    await loadDefaultLayers();
-    loadEarthquakes({ catalog: 2 });
-    
-    // Setup HTML Event Listeners
-    const catalogSelect = document.getElementById('catalog-select-3d');
-    if (catalogSelect) {
-        catalogSelect.addEventListener('change', (e) => {
-            loadEarthquakes({ catalog: e.target.value });
-        });
+// ------------------------------------------------------------
+// Load default layers + earthquakes immediately
+// (NO terrain gating — fixes infinite loading screen)
+// ------------------------------------------------------------
+(async () => {
+    try {
+        await loadDefaultLayers();
+        await loadEarthquakes({ catalog: 2 });
+        console.log('🌍 Initial data loaded');
+    } catch (err) {
+        console.error('❌ Initial data load failed:', err);
     }
-    
-    if (window.flatpickr) {
-        flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
-        flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
-    }
-    
-    console.log('✅ 3D viewer fully initialized and ready');
-} 
+})();
 
+// ------------------------------------------------------------
+// Setup HTML Event Listeners
+// ------------------------------------------------------------
+const catalogSelect = document.getElementById('catalog-select-3d');
+if (catalogSelect) {
+    catalogSelect.addEventListener('change', (e) => {
+        loadEarthquakes({ catalog: e.target.value });
+    });
+}
 
+if (window.flatpickr) {
+    flatpickr('#start-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
+    flatpickr('#end-date-3d', { dateFormat: 'm/d/Y', allowInput: true });
+}
+
+console.log('✅ 3D viewer fully initialized and ready');
+}
+
+// ------------------------------------------------------------
+// Main entry + exports
+// ------------------------------------------------------------
 main().catch(err => {
     console.error('❌ Cesium init failed:', err);
     alert('Failed to initialize 3D viewer. Check console for details.');
@@ -1280,18 +1385,20 @@ main().catch(err => {
 
 export { viewer, loadEarthquakes };
 
+// ------------------------------------------------------------
 // Cleanup function - call when leaving 3D view
+// ------------------------------------------------------------
 export function cleanup3D() {
     if (clickHandler) {
         clickHandler.destroy();
         clickHandler = null;
     }
-    
+
     if (preRenderCallback && viewer) {
         viewer.scene.preRender.removeEventListener(preRenderCallback);
         preRenderCallback = null;
     }
-    
+
     if (viewer) {
         viewer.entities.removeAll();
         viewer.dataSources.removeAll();

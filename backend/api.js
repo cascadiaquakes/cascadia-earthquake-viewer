@@ -9,8 +9,8 @@ const port = 3002;
 const pool = new Pool({
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'postgres',
-    host: process.env.PGHOST || 'postgis-eq',  // CHANGED
-    port: process.env.PGPORT || 5432,           // CHANGED
+    host: process.env.PGHOST || 'localhost',  // Changed default to localhost
+    port: process.env.PGPORT || 5490,         // Changed default to 5490 (our Docker port)
     database: process.env.PGDATABASE || 'gis'
 });
 
