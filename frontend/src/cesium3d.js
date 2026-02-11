@@ -43,7 +43,7 @@ const TILTED_VIEW = {
 const DEPTH_EXAGGERATION = 1.25;
 
 // Extra downward offset ONLY for subduction interface (km)
-const SUBDUCTION_DEPTH_OFFSET_KM = 2.0;
+const SUBDUCTION_DEPTH_OFFSET_KM = 1.25;
 
 // Shallow embedding depth for CFM crustal fault surfaces (km)
 const CFM_CRUSTAL_BASE_DEPTH_KM = 3.0;
@@ -55,12 +55,7 @@ function depthKmToHeightMeters(depthKm, offsetKm = 0.0) {
     return -(depthKm + offsetKm) * 1000.0 * DEPTH_EXAGGERATION;
 }
 
-// DEPRECATED — DO NOT USE
-// Depth exaggeration is now applied explicitly in:
-//   - loadEarthquakes()
-//   - loadCFMSurfaces()
-//   - load2DSurfaces()
-// via depthKmToHeightMeters(...)
+
 function applyVerticalExaggerationToDataSource(dataSource) {
     console.warn(
         'applyVerticalExaggerationToDataSource() is deprecated and intentionally disabled. ' +
