@@ -41,9 +41,10 @@
         
         <div class="header-right">
             <a href="/viewer3d.html" class="btn-glass" onclick="cleanup2D()">3D View →</a>
-            <span class="version-text">v1 • demo</span>
+            <button class="btn-glass" onclick="openAboutModal()">About</button>
         </div>
     </header>
+
 
     <div id="map-wrapper">
         <div id="map"></div>
@@ -421,5 +422,93 @@
         }
     }
     </script>
+
+<!-- About Modal -->
+<div id="about-modal" class="about-modal-overlay" style="display: none;" onclick="closeAboutModal()">
+  <div class="about-modal-content" onclick="event.stopPropagation()">
+    <button class="about-modal-close" onclick="closeAboutModal()">×</button>
+
+    <h2>CRESCENT Earthquake Catalog Viewer</h2>
+
+    <p>
+      The <strong>Cascadia Region Earthquake Science Center (CRESCENT)</strong>
+      Earthquake Catalog Viewer is a community resource for exploring
+      peer-reviewed earthquake catalogs within the Cascadia Subduction Zone
+      and surrounding regions.
+    </p>
+
+    <h3>Purpose</h3>
+    <p>
+      This viewer supports reproducible earthquake science by providing
+      standardized access to curated catalogs derived using diverse
+      detection, association, and location methodologies.
+    </p>
+
+    <div class="about-links">
+      <a
+        href="https://cascadiaquakes.github.io/earthquake_catalog_repository/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="about-link-button"
+      >
+        View Documentation
+      </a>
+    </div>
+
+    <h3>Project Contacts</h3>
+
+    <div class="contact-info">
+
+    <div class="contact-block">
+        <strong>Amanda M. Thomas</strong>
+        Department of Earth and Planetary Sciences<br/>
+        University of California, Davis<br/>
+        <a href="mailto:amthom@ucdavis.edu">amthom@ucdavis.edu</a>
+    </div>
+
+    <div class="contact-block">
+        <strong>William Marfo</strong>
+        Cascadia Region Earthquake Science Center<br/>
+        Department of Earth and Planetary Sciences<br/>
+        University of California, Davis<br/>
+        <a href="mailto:wmarfo@ucdavis.edu">wmarfo@ucdavis.edu</a>
+    </div>
+
+    <div class="contact-block">
+        <strong>Loïc Bachelot</strong>
+        Cascadia Region Earthquake Science Center<br/>
+        Department of Earth Sciences<br/>
+        University of Oregon<br/>
+        <a href="mailto:lbachelo@uoregon.edu">lbachelo@uoregon.edu</a>
+    </div>
+
+    </div>
+
+
+    <p class="acknowledgment">
+      Supported by the National Science Foundation through the
+      Cascadia Region Earthquake Science Center (CRESCENT).
+    </p>
+
+  </div>
+</div>
+
+
+<script>
+function openAboutModal() {
+    document.getElementById('about-modal').style.display = 'flex';
+}
+
+function closeAboutModal() {
+    document.getElementById('about-modal').style.display = 'none';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAboutModal();
+});
+</script>
+
+
 </body>
 </html>
