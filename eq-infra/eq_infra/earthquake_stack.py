@@ -5,7 +5,6 @@ from aws_cdk import (
     aws_cloudfront as cloudfront,
     aws_certificatemanager as acm,
     aws_cloudfront_origins as origins,
-    aws_s3_deployment as s3_deployment,
     aws_iam as iam,
     CfnOutput,
 )
@@ -181,16 +180,6 @@ class EarthquakeStack(Stack):
             },
         )
 
-        # Deploy frontend build to S3
-        s3_deployment.BucketDeployment(
-            self,
-            "DeployEqViewer",
-            sources=[s3_deployment.Source.asset("../frontend/dist")],
-            destination_bucket=site_bucket,
-            destination_key_prefix="earthquake-viewer",
-            distribution=distribution,
-            distribution_paths=["/*"],
-        )
 
         # Stack outputs
         frontend_url = f"https://{distribution.distribution_domain_name}"
