@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Frontend: Build ───────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        env:
+          VITE_CESIUM_TOKEN: "unused"
+          VITE_MAPTILER_KEY: "unused"
+          VITE_API_URL: "https://localhost"
+          VITE_TILE_URL: "https://localhost"
+        run: npm run build
+
+      # ── Infra: CDK synth ──────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: eq-infra/requirements.txt
+
+      - name: Install CDK dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r eq-infra/requirements.txt
+
+      - name: CDK synth (validate infrastructure)
+        working-directory: eq-infra
+        run: npx cdk@2 synth -q
+
+      # ── Upload artifacts ──────────────────────────────────────
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cdk-out
+          path: eq-infra/cdk.out/
+          retention-days: 7

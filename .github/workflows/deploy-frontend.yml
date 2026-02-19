@@ -1,0 +1,95 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type 'deploy' to confirm production deployment"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false  # Never cancel an active deployment
+
+env:
+  AWS_REGION: us-west-2
+  S3_BUCKET: crescent-react-hosting
+  S3_PREFIX: earthquake-viewer
+  CF_DISTRIBUTION_ID: E2IF1UMW8RWSY0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Safety gate: must type 'deploy' to confirm
+    if: github.event.inputs.confirm == 'deploy'
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Build frontend ────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend (production)
+        env:
+          VITE_CESIUM_TOKEN: ${{ secrets.VITE_CESIUM_TOKEN }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_TILE_URL: ${{ vars.VITE_TILE_URL }}
+        run: npm run build
+
+      # ── Authenticate to AWS via OIDC ──────────────────────────
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::818214664804:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-frontend
+
+      # ── Deploy to S3 ─────────────────────────────────────────
+      - name: Sync to S3
+        run: |
+          echo "Deploying to s3://$S3_BUCKET/$S3_PREFIX/"
+          aws s3 sync dist/ "s3://$S3_BUCKET/$S3_PREFIX/" \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "viewer3d.html"
+
+          # HTML files: no cache (so users always get latest)
+          aws s3 cp dist/index.html "s3://$S3_BUCKET/$S3_PREFIX/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          aws s3 cp dist/viewer3d.html "s3://$S3_BUCKET/$S3_PREFIX/viewer3d.html" \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      # ── Invalidate CloudFront ─────────────────────────────────
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CF_DISTRIBUTION_ID" \
+            --paths "/*"
+          echo "CloudFront invalidation submitted."
+
+      # ── Smoke test ────────────────────────────────────────────
+      - name: Smoke test
+        run: |
+          echo "Waiting 15s for invalidation to propagate..."
+          sleep 15
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://eqcat.cascadiaquakes.org/)
+          echo "HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Smoke test failed — site returned HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "Smoke test passed."

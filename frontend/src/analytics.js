@@ -1,5 +1,6 @@
 // analytics.js (Chart.js v4)
 // Clean compare mode (Primary bars + Overlay line for rate; distributions become lines when we comparing)
+// CI/CD pipeline test
 
 let timelineChart = null;
 let magnitudeChart = null;
