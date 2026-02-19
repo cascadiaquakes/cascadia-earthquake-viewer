@@ -36,11 +36,14 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        working-directory: frontend
         run: npm ci
 
       - name: Build frontend (production)
+        working-directory: frontend
         env:
           VITE_CESIUM_TOKEN: ${{ secrets.VITE_CESIUM_TOKEN }}
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
@@ -60,17 +63,17 @@ jobs:
       - name: Sync to S3
         run: |
           echo "Deploying to s3://$S3_BUCKET/$S3_PREFIX/"
-          aws s3 sync dist/ "s3://$S3_BUCKET/$S3_PREFIX/" \
+          aws s3 sync frontend/dist/ "s3://$S3_BUCKET/$S3_PREFIX/" \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "index.html" \
             --exclude "viewer3d.html"
 
           # HTML files: no cache (so users always get latest)
-          aws s3 cp dist/index.html "s3://$S3_BUCKET/$S3_PREFIX/index.html" \
+          aws s3 cp frontend/dist/index.html "s3://$S3_BUCKET/$S3_PREFIX/index.html" \
             --cache-control "no-cache, no-store, must-revalidate"
 
-          aws s3 cp dist/viewer3d.html "s3://$S3_BUCKET/$S3_PREFIX/viewer3d.html" \
+          aws s3 cp frontend/dist/viewer3d.html "s3://$S3_BUCKET/$S3_PREFIX/viewer3d.html" \
             --cache-control "no-cache, no-store, must-revalidate"
 
       # ── Invalidate CloudFront ─────────────────────────────────
