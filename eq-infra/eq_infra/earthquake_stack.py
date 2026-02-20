@@ -31,21 +31,23 @@ class EarthquakeStack(Stack):
             allow_all_outbound=True,
         )
 
-        # Allow inbound traffic for Martin tile server (port 3000)
+        # CloudFront uses the AWS-managed prefix list (com.amazonaws.global.cloudfront.origin-facing)
+        # This restricts direct access to only CloudFront edge servers
+        cloudfront_prefix_list = ec2.Peer.prefix_list("pl-82a045eb")  # us-west-2 CloudFront prefix list
+
         backend_sg.add_ingress_rule(
-            ec2.Peer.any_ipv4(),
+            cloudfront_prefix_list,
             ec2.Port.tcp(3000),
-            "Martin tile server"
+            "Martin tile server — CloudFront only"
         )
 
-        # Allow inbound traffic for API server (port 3002)
         backend_sg.add_ingress_rule(
-            ec2.Peer.any_ipv4(),
+            cloudfront_prefix_list,
             ec2.Port.tcp(3002),
-            "API server"
+            "API server — CloudFront only"
         )
 
-        # IAM role for EC2 instance with SSM access
+        # IAM role for EC2 instance with SSM and ECR access
         backend_role = iam.Role(
             self,
             "BackendRole",
@@ -53,7 +55,10 @@ class EarthquakeStack(Stack):
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "AmazonSSMManagedInstanceCore"
-                )
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonEC2ContainerRegistryReadOnly"
+                ),
             ],
         )
 
@@ -78,12 +83,12 @@ class EarthquakeStack(Stack):
             # Clone application repository
             "cd /home/ec2-user",
             "rm -rf cascadia-earthquake-viewer || true",
-            "git clone https://github.com/billmj/cascadia-earthquake-viewer.git",
+            "git clone https://github.com/cascadiaquakes/cascadia-earthquake-viewer.git",
             "chown -R ec2-user:ec2-user cascadia-earthquake-viewer",
             "cd cascadia-earthquake-viewer",
 
-            # Start Docker Compose services
-            "sudo -u ec2-user /usr/local/bin/docker-compose up -d",
+            # Start Docker Compose services using production compose
+            "sudo -u ec2-user /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d",
 
             # Log deployment completion
             "echo 'Deployment complete' > /home/ec2-user/deployment.log",
@@ -180,41 +185,40 @@ class EarthquakeStack(Stack):
             },
         )
 
-
         # Stack outputs
         frontend_url = f"https://{distribution.distribution_domain_name}"
 
         CfnOutput(
-            self, 
-            "FrontendURL", 
+            self,
+            "FrontendURL",
             value=f"{frontend_url}/index.html",
-            description="🌐 Earthquake Viewer (745k events)"
+            description="Earthquake Viewer"
         )
-        
+
         CfnOutput(
-            self, 
-            "TilesEndpoint", 
+            self,
+            "TilesEndpoint",
             value=f"{frontend_url}/tiles_zxy/0/0/0.pbf",
-            description="🗺️ Test tile endpoint"
+            description="Test tile endpoint"
         )
-        
+
         CfnOutput(
-            self, 
-            "ApiEndpoint", 
+            self,
+            "ApiEndpoint",
             value=f"{frontend_url}/api/catalogs",
-            description="📡 Test API endpoint"
+            description="Test API endpoint"
         )
-        
+
         CfnOutput(
-            self, 
-            "BackendIP", 
+            self,
+            "BackendIP",
             value=backend_instance.instance_public_ip,
-            description="🖥️ Backend EC2 IP"
+            description="Backend EC2 IP"
         )
-        
+
         CfnOutput(
             self,
             "DebugCommand",
             value=f"aws ssm start-session --target {backend_instance.instance_id}",
-            description="🔧 Connect to backend"
+            description="Connect to backend via SSM"
         )
