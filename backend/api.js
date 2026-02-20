@@ -15,8 +15,16 @@ const pool = new Pool({
 });
 
 // CORS middleware
+const ALLOWED_ORIGINS = [
+    'https://eqcat.cascadiaquakes.org',
+    'https://d1a5q8bsxutjyg.cloudfront.net'
+];
+
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     next();
 });
