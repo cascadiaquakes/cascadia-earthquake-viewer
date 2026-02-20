@@ -1,0 +1,86 @@
+name: Deploy Frontend (Dev)
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "frontend/**"
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC
+
+concurrency:
+  group: deploy-frontend-dev
+  cancel-in-progress: true  # Cancel stale dev deploys
+
+env:
+  AWS_REGION: us-west-2
+  S3_BUCKET: crescent-react-hosting
+  S3_PREFIX: earthquake-viewer/dev
+  CF_DISTRIBUTION_ID: E2IF1UMW8RWSY0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Build frontend ────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (dev)
+        working-directory: frontend
+        env:
+          VITE_CESIUM_TOKEN: ${{ secrets.VITE_CESIUM_TOKEN }}
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_TILE_URL: ${{ vars.VITE_TILE_URL }}
+        run: npm run build
+
+      # ── Authenticate to AWS via OIDC ──────────────────────────
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::818214664804:role/GitHubActionsDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-deploy-frontend-dev
+
+      # ── Deploy to S3 ─────────────────────────────────────────
+      - name: Sync to S3 (dev)
+        run: |
+          echo "Deploying to s3://$S3_BUCKET/$S3_PREFIX/"
+          aws s3 sync frontend/dist/ "s3://$S3_BUCKET/$S3_PREFIX/" \
+            --delete \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      # ── Invalidate CloudFront ─────────────────────────────────
+      - name: Invalidate CloudFront cache (dev)
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CF_DISTRIBUTION_ID" \
+            --paths "/dev/*"
+          echo "Dev CloudFront invalidation submitted."
+
+      # ── Smoke test ────────────────────────────────────────────
+      - name: Smoke test
+        run: |
+          echo "Waiting 15s for invalidation to propagate..."
+          sleep 15
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://eqcat.cascadiaquakes.org/dev/)
+          echo "Dev HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::warning::Dev smoke test returned HTTP $HTTP_CODE (may need initial deploy)"
+          else
+            echo "Dev smoke test passed."
+          fi
