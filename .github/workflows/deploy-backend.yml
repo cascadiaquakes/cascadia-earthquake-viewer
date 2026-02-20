@@ -70,10 +70,10 @@ jobs:
             --parameters commands='[
               "set -e",
               "echo \"Starting backend deployment...\"",
-              "aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 818214664804.dkr.ecr.us-west-2.amazonaws.com",
-              "docker pull 818214664804.dkr.ecr.us-west-2.amazonaws.com/eq-api:latest",
+              "sudo -u ec2-user bash -c \"aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 818214664804.dkr.ecr.us-west-2.amazonaws.com\"",
+              "sudo -u ec2-user docker pull 818214664804.dkr.ecr.us-west-2.amazonaws.com/eq-api:latest",
               "cd /home/ec2-user/cascadia-earthquake-viewer",
-              "docker compose -f docker-compose.prod.yml up -d api-eq",
+              "sudo -u ec2-user /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d api-eq",
               "echo \"Backend deployment complete.\""
             ]' \
             --query "Command.CommandId" \
