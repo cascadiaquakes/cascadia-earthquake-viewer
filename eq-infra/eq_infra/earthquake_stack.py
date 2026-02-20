@@ -31,20 +31,18 @@ class EarthquakeStack(Stack):
             allow_all_outbound=True,
         )
 
-        # CloudFront uses the AWS-managed prefix list (com.amazonaws.global.cloudfront.origin-facing)
-        # This restricts direct access to only CloudFront edge servers
-        cloudfront_prefix_list = ec2.Peer.prefix_list("pl-82a045eb")  # us-west-2 CloudFront prefix list
-
+        # Allow inbound traffic for Martin tile server (port 3000)
         backend_sg.add_ingress_rule(
-            cloudfront_prefix_list,
+            ec2.Peer.any_ipv4(),
             ec2.Port.tcp(3000),
-            "Martin tile server - CloudFront only"
+            "Martin tile server"
         )
 
+        # Allow inbound traffic for API server (port 3002)
         backend_sg.add_ingress_rule(
-            cloudfront_prefix_list,
+            ec2.Peer.any_ipv4(),
             ec2.Port.tcp(3002),
-            "API server - CloudFront only"
+            "API server"
         )
 
         # IAM role for EC2 instance with SSM and ECR access
