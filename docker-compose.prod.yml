@@ -25,6 +25,12 @@ services:
     restart: unless-stopped
     ports:
       - "3002:3002"
+    environment:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: postgis-eq
+      PGPORT: "5432"
+      PGDATABASE: gis
     depends_on:
       postgis-eq:
         condition: service_healthy
