@@ -38,6 +38,10 @@ jobs:
           VITE_TILE_URL: "https://localhost"
         run: npm run build
 
+      # ── Backend: Docker build validation ──────────────────────
+      - name: Build backend image (validation only)
+        run: docker build -t eq-api:ci-${{ github.sha }} backend/
+
       # ── Infra: CDK synth ──────────────────────────────────────
       - uses: actions/setup-python@v5
         with:
