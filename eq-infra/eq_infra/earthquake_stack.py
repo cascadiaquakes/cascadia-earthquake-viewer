@@ -38,13 +38,13 @@ class EarthquakeStack(Stack):
         backend_sg.add_ingress_rule(
             cloudfront_prefix_list,
             ec2.Port.tcp(3000),
-            "Martin tile server — CloudFront only"
+            "Martin tile server - CloudFront only"
         )
 
         backend_sg.add_ingress_rule(
             cloudfront_prefix_list,
             ec2.Port.tcp(3002),
-            "API server — CloudFront only"
+            "API server - CloudFront only"
         )
 
         # IAM role for EC2 instance with SSM and ECR access
