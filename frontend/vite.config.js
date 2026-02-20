@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import cesium from 'vite-plugin-cesium';
 
 export default defineConfig({
-  base: "/",
+  base: "./",
   plugins: [cesium()],
   build: {
     rollupOptions: {
@@ -13,7 +13,6 @@ export default defineConfig({
       }
     }
   },
-  // ✅ 1. PROXY FOR DEV (npm run dev)
   server: { 
     port: 5173,
     host: '0.0.0.0',
@@ -25,7 +24,6 @@ export default defineConfig({
       }
     }
   },
-  // ✅ 2. PROXY FOR BUILD PREVIEW (npm run preview)
   preview: {
     port: 4173,
     proxy: {
