@@ -1,105 +1,108 @@
-# CI/CD Setup Guide — Earthquake Catalog Viewer
+# CI/CD — Earthquake Catalog Viewer
 
-## Workflow Files
+## Overview
 
+Automated CI/CD pipeline with dev/prod environment separation. All workflows use OIDC authentication (no stored AWS keys) and branch protection enforces code review before production changes.
 
+| Environment | Branch | Deploy | URL |
+|---|---|---|---|
+| Dev | `dev` | Auto on push | `https://eqcat.cascadiaquakes.org/dev/index.html` |
+| Prod | `main` | Manual | `https://eqcat.cascadiaquakes.org/` |
+
+---
+
+## Workflows
 
 ```
 .github/workflows/
-├── ci.yml               # Runs on PRs to main
-├── deploy-frontend.yml  # Manual production deploy
+├── ci.yml                    # PR validation (frontend + backend + infra)
+├── deploy-frontend.yml       # Production frontend deploy (manual)
+├── deploy-frontend-dev.yml   # Dev frontend deploy (auto on push to dev)
+├── deploy-backend.yml        # Backend deploy via ECR + SSM (manual)
+└── deploy-infra.yml          # CDK infrastructure deploy (manual)
 ```
 
----
+**CI** runs automatically on every pull request to `main` or `dev`. It validates the frontend build, backend Docker image, and CDK synth. No AWS credentials required.
 
+**Deploy Frontend** and **Deploy Backend** are triggered manually from Actions with a confirmation gate — type `deploy` to proceed. This prevents accidental production changes.
 
-### `ci.yml` (Continuous Integration)
+**Deploy Frontend (Dev)** triggers automatically when frontend files are pushed to the `dev` branch.
 
-**Trigger:** Every pull request to `main`
-
-**Steps:**
-1. Installs frontend dependencies (`npm ci`)
-2. Builds Vite frontend (catches build errors before merge)
-3. Validates CDK infrastructure (`cdk synth`)
-4. Uploads `dist/` and `cdk.out/` as artifacts for review
-
-**No AWS credentials needed.** Pure validation only.
-
-### `deploy-frontend.yml` (Production Deploy)
-
-**Trigger:** Manual only — go to Actions → Deploy Frontend → Run workflow
-
-**Safety:**  Type `deploy` in the confirmation field. This prevents accidental production deployments.
-
-**Steps:**
-1. Builds frontend with production Cesium token
-2. Authenticates to AWS via OIDC (no stored keys)
-3. Syncs `dist/` to `s3://crescent-react-hosting/earthquake-viewer/`
-4. Invalidates CloudFront cache
-5. Smoke tests `https://eqcat.cascadiaquakes.org/`
+**Deploy Infrastructure** runs `cdk diff` followed by `cdk deploy`. Use with caution — always review the diff output before proceeding. User data changes will replace the EC2 instance.
 
 ---
 
-## One-Time Repository Setup
+## Development Workflow
 
-### 1. GitHub Secret (required)
+**Frontend changes:**
 
-Go to **repo Settings → Secrets and variables → Actions → Secrets**:
+```
+git checkout dev
+git checkout -b feature/my-change
+# make changes, commit, push
+# open PR to dev → CI runs → merge → auto-deploys to dev
+# preview at /dev/index.html
+# open PR from dev → main → CI runs → merge
+# Actions → Deploy Frontend → type "deploy" → live
+```
 
-| Secret | Value |
+**Backend changes** follow the same branch flow, but trigger **Deploy Backend** instead of Deploy Frontend after merging to `main`. There is no dev auto-deploy for backend since both environments share a single backend instance.
+
+---
+
+## Infrastructure
+
+| Component | Resource |
 |---|---|
-| `VITE_CESIUM_TOKEN` | Your Cesium Ion access token |
+| Frontend (prod) | `s3://crescent-react-hosting/earthquake-viewer/` |
+| Frontend (dev) | `s3://crescent-react-hosting/earthquake-viewer/dev/` |
+| CloudFront | `E2IF1UMW8RWSY0` → `eqcat.cascadiaquakes.org` |
+| Backend EC2 | `i-01f4ed3c781a23aea` (us-west-2) |
+| ECR | `818214664804.dkr.ecr.us-west-2.amazonaws.com/eq-api` |
+| CDK Stack | `EarthquakeStack` |
 
-### 2. IAM Trust Policy (already done)
-
-The `GitHubActionsDeployRole` must trust this repo. Add to the trust policy:
-
-```
-repo:cascadiaquakes/cascadia-earthquake-viewer:ref:refs/heads/main
-```
-
-### 3. IAM Permissions
-
-The `GitHubActionsDeployRole` needs these permissions:
-
-- `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket` on `crescent-react-hosting`
-- `cloudfront:CreateInvalidation` on distribution `E2IF1UMW8RWSY0`
-
-### 4. Branch Protection (recommended)
-
-Go to **repo Settings → Branches → Add rule** for `main`:
-
-- ✅ Require a pull request before merging
-- ✅ Require status checks to pass (select `build-and-validate`)
-- ✅ Require branches to be up to date
+**Backend services** (Docker Compose on EC2):
+- `api-eq` — Express API (port 3002), image pulled from ECR
+- `martin-eq` — Martin tile server (port 3000)
+- `postgis-eq` — PostgreSQL/PostGIS (internal only, no public port)
 
 ---
 
-## Developer Workflow
+## Repository Configuration
 
-```
-1. Create feature branch:    git checkout -b feature/my-change
-2. Make changes, commit, push
-3. Open PR to main           → CI runs automatically
-4. Review + merge PR
-5. Go to Actions → Deploy Frontend → Run workflow → type "deploy"
-6. Verify at https://eqcat.cascadiaquakes.org/
-```
+**GitHub Secrets** (`Settings → Secrets and variables → Actions`):
+- `VITE_CESIUM_TOKEN` — Cesium Ion access token
+- `VITE_MAPTILER_KEY` — MapTiler API key
 
----
+**GitHub Variables:**
+- `VITE_API_URL` — Production API base URL
+- `VITE_TILE_URL` — Production tile server URL
 
-## Notes
+**IAM:**
+- `GitHubActionsDeployRole` trusts `cascadiaquakes/cascadia-earthquake-viewer` on `main` and `dev` branches via OIDC
+- `BackendRole` includes SSM and ECR read permissions
 
-- **Frontend deploy is decoupled from CDK.** We no longer need `cdk deploy` to update the frontend. The S3 sync replaces the CDK `BucketDeployment` for day-to-day changes.
-
-- **CDK deploy is separate.** For infrastructure changes (EC2, CloudFront config, security groups), run `cdk deploy` manually or via a future `deploy-infra.yml` workflow.
-
-- **Cache strategy:** HTML files (`index.html`, `viewer3d.html`) are served with `no-cache` so users always get the latest. All other assets (JS, CSS, images) use long-lived cache with immutable flag since Vite hashes filenames.
+**Branch Protection** on `main`:
+- Requires pull request
+- Requires CI status check to pass
+- Requires branch to be up to date
 
 ---
 
-## Phase 2 (Future)
+## Database Recovery
 
-When ready, add:
-- `deploy-backend.yml` — Build Docker images → push to ECR → SSM into EC2 → pull + restart
-- `deploy-infra.yml` — Manual CDK deploy for infrastructure changes
+If the EC2 instance is replaced (e.g., CDK redeploys with user data changes), restore the database:
+
+```bash
+aws ssm start-session --target <instance-id>
+sudo su - ec2-user
+cd ~/cascadia-earthquake-viewer
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 818214664804.dkr.ecr.us-west-2.amazonaws.com
+docker-compose -f docker-compose.prod.yml up -d
+aws s3 cp s3://crescent-react-hosting/temp/gis_FINAL_jan15_2026.dump /tmp/
+docker cp /tmp/gis_FINAL_jan15_2026.dump postgis-eq:/tmp/
+docker exec postgis-eq pg_restore -U postgres -d gis --clean --no-owner /tmp/gis_FINAL_jan15_2026.dump
+docker-compose -f docker-compose.prod.yml restart api-eq martin-eq
+```
+
+Verify: `docker exec postgis-eq psql -U postgres -d gis -c "SELECT catalog_id, COUNT(*) FROM earthquake.events GROUP BY catalog_id;"`
