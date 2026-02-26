@@ -2264,4 +2264,36 @@ details[open].catalog-info-section .catalog-info-header::before {
   border-top: 1px solid #e2e8f0;
 }
 
-/* dev environment test */
+
+
+/* FORCE FILTER HEADERS TO MATCH CATALOG INFORMATION */
+.filter-header {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+
+/* Make Compare Catalogs match section headers */
+.filter-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+/* PANEL HEADERS */
+.panel-header {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
