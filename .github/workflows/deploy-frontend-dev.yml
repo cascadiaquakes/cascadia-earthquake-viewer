@@ -77,7 +77,7 @@ jobs:
         run: |
           echo "Waiting 15s for invalidation to propagate..."
           sleep 15
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://eqcat.cascadiaquakes.org/dev/)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://eqcat.cascadiaquakes.org/dev/index.html)
           echo "Dev HTTP status: $HTTP_CODE"
           if [ "$HTTP_CODE" -ne 200 ]; then
             echo "::warning::Dev smoke test returned HTTP $HTTP_CODE (may need initial deploy)"
