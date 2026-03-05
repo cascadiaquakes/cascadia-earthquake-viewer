@@ -3,107 +3,116 @@ import { BASEMAPS } from '../mapStyles.js';
 export class LayersControl {
   onAdd(map) {
     this._map = map;
-    this._container = document.createElement("div");
-    this._container.className = "maplibregl-ctrl maplibregl-ctrl-group";
 
-    // Button with layers icon
-    this._button = document.createElement("button");
-    this._button.type = "button";
-    this._button.title = "Map Layers";
-    this._button.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M12 3 3 8l9 5 9-5-9-5Z" stroke-width="2"/>
-        <path d="M3 12l9 5 9-5" stroke-width="2"/>
-        <path d="M3 16l9 5 9-5" stroke-width="2"/>
-      </svg>
-    `;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    wrapper.style.position = 'relative';
 
-    // Panel with all basemaps
-    this._panel = document.createElement("div");
-    this._panel.className = "layers-panel";
-    
-    // Generate basemap radio buttons dynamically
-    const basemapOptions = Object.entries(BASEMAPS).map(([key, data], index) => `
-      <label class="basemap-item">
-        <input type="radio" name="basemap" value="${key}" ${index === 0 ? 'checked' : ''}>
-        <span>${data.label}</span>
-      </label>
-    `).join('');
-    
-    this._panel.innerHTML = `
-      <div class="layers-section">
-        <div class="layers-title">Overlays</div>
-        <label class="basemap-item">
-          <input type="checkbox" id="toggle-cascadia" checked>
-          <span>Cascadia Boundary</span>
-        </label>
-        <label class="basemap-item">
-          <input type="checkbox" id="toggle-fault-traces" checked>
-          <span>Fault Traces</span>
-        </label>
-      </div>
-      <div class="layers-divider"></div>
-      <div class="layers-section">
-        <div class="layers-title">Basemap</div>
-        ${basemapOptions}
-      </div>
-      <div class="layers-divider"></div>
-      <div class="layers-section">
-        <label class="basemap-item">
-          <input type="checkbox" id="toggle-labels">
-          <span>Names</span>
-        </label>
-      </div>
-    `;
+    // Toggle button - same SVG as GF viewer
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.title = 'Layers';
+    btn.className = 'layer-switcher-btn';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27z"/>
+        <path d="M12 11.27L4.64 6 12 .73 19.36 6z" opacity="0.3"/>
+    </svg>`;
+    wrapper.appendChild(btn);
 
-    this._panel.style.display = "none";
-    this._container.appendChild(this._button);
-    this._container.appendChild(this._panel);
+    // Panel
+    const panel = document.createElement('div');
+    panel.className = 'layer-switcher-panel';
+    panel.style.display = 'none';
 
-    // Toggle panel
-    this._button.onclick = (e) => {
-      e.stopPropagation();
-      const isHidden = this._panel.style.display === "none";
-      this._panel.style.display = isHidden ? "block" : "none";
-    };
+    // --- Overlays ---
+    const overlayTitle = document.createElement('div');
+    overlayTitle.textContent = 'Overlays';
+    overlayTitle.style.cssText = 'font-size:11px;font-weight:700;color:#0b4a53;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;';
+    panel.appendChild(overlayTitle);
 
-    // Close on outside click
-    document.addEventListener("click", (e) => {
-      if (!this._container.contains(e.target)) {
-        this._panel.style.display = "none";
-      }
-    });
+    // Cascadia Boundary
+    const cascadiaRow = document.createElement('label');
+    cascadiaRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;';
+    const cascadiaCheck = document.createElement('input');
+    cascadiaCheck.type = 'checkbox';
+    cascadiaCheck.checked = true;
+    cascadiaCheck.style.accentColor = '#0b4a53';
+    cascadiaRow.appendChild(cascadiaCheck);
+    cascadiaRow.append('Cascadia Boundary');
+    panel.appendChild(cascadiaRow);
 
-    // Basemap switching
-    this._panel.querySelectorAll("input[name='basemap']").forEach(input => {
-      input.addEventListener("change", (e) => {
-        const basemapKey = e.target.value;
-        const basemap = BASEMAPS[basemapKey];
-        
+    // Fault Traces
+    const faultRow = document.createElement('label');
+    faultRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;cursor:pointer;';
+    const faultCheck = document.createElement('input');
+    faultCheck.type = 'checkbox';
+    faultCheck.checked = true;
+    faultCheck.style.accentColor = '#0b4a53';
+    faultRow.appendChild(faultCheck);
+    faultRow.append('Fault Traces');
+    panel.appendChild(faultRow);
+
+    // Divider
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px;background:#e2e8f0;margin-bottom:12px;';
+    panel.appendChild(divider);
+
+    // --- Basemap ---
+    const bmTitle = document.createElement('div');
+    bmTitle.textContent = 'Basemap';
+    bmTitle.style.cssText = 'font-size:11px;font-weight:700;color:#0b4a53;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;';
+    panel.appendChild(bmTitle);
+
+    const basemapEntries = Object.entries(BASEMAPS);
+    basemapEntries.forEach(([key, data], i) => {
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;';
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'basemap-select';
+      radio.value = key;
+      radio.checked = i === 0;
+      radio.style.accentColor = '#0b4a53';
+      row.appendChild(radio);
+      row.append(data.label);
+      panel.appendChild(row);
+
+      radio.addEventListener('change', () => {
         if (window.switchMapStyle) {
-          window.switchMapStyle(basemapKey, basemap);
+          window.switchMapStyle(key, data);
         }
-        
-        this._panel.style.display = "none";
+        panel.style.display = 'none';
       });
     });
 
-    // Cascadia Boundary toggle
-    this._panel.querySelector("#toggle-cascadia")?.addEventListener("change", (e) => {
-      const visible = e.target.checked ? "visible" : "none";
-      if (this._map.getLayer("cascadia-line")) {
-        this._map.setLayoutProperty("cascadia-line", "visibility", visible);
+    wrapper.appendChild(panel);
+
+    // Toggle
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrapper.contains(e.target)) panel.style.display = 'none';
+    });
+
+    // Handlers
+    cascadiaCheck.addEventListener('change', (e) => {
+      const visible = e.target.checked ? 'visible' : 'none';
+      if (this._map.getLayer('cascadia-line')) {
+        this._map.setLayoutProperty('cascadia-line', 'visibility', visible);
       }
     });
 
-    // Fault Traces toggle
-    this._panel.querySelector("#toggle-fault-traces")?.addEventListener("change", (e) => {
+    faultCheck.addEventListener('change', (e) => {
       if (window.setFaultsVisible) {
         window.setFaultsVisible(this._map, e.target.checked);
       }
     });
 
-    return this._container;
+    this._container = wrapper;
+    return wrapper;
   }
 
   onRemove() {
