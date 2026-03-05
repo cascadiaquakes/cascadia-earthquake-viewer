@@ -32,11 +32,6 @@ export class LayersControl {
     
     this._panel.innerHTML = `
       <div class="layers-section">
-        <div class="layers-title">Basemap</div>
-        ${basemapOptions}
-      </div>
-      <div class="layers-divider"></div>
-      <div class="layers-section">
         <div class="layers-title">Overlays</div>
         <label class="basemap-item">
           <input type="checkbox" id="toggle-cascadia" checked>
@@ -45,6 +40,18 @@ export class LayersControl {
         <label class="basemap-item">
           <input type="checkbox" id="toggle-fault-traces" checked>
           <span>Fault Traces</span>
+        </label>
+      </div>
+      <div class="layers-divider"></div>
+      <div class="layers-section">
+        <div class="layers-title">Basemap</div>
+        ${basemapOptions}
+      </div>
+      <div class="layers-divider"></div>
+      <div class="layers-section">
+        <label class="basemap-item">
+          <input type="checkbox" id="toggle-labels">
+          <span>Names</span>
         </label>
       </div>
     `;
