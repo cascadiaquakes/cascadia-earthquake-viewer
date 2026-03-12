@@ -365,8 +365,11 @@ async function loadCFMSurfaces() {
     try {
         console.log('🔄 Loading CFM fault surfaces (CFM crustal)...');
 
+        const response = await fetch(CFM_SURFACE_URL);
+        const geojson = await response.json();
+        delete geojson.crs;
         const dataSource = await Cesium.GeoJsonDataSource.load(
-            CFM_SURFACE_URL,
+            geojson,
             { clampToGround: false }
         );
 
