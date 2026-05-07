@@ -49,7 +49,7 @@ export class LayersControl {
     faultCheck.checked = true;
     faultCheck.style.accentColor = '#0b4a53';
     faultRow.appendChild(faultCheck);
-    faultRow.append('Fault Traces');
+    faultRow.append('Fault Traces (CFM v0.1 pre-release)');
     panel.appendChild(faultRow);
 
     // Divider

@@ -8,7 +8,8 @@ import { LayersControl } from './src/controls/LayersControl.js';
 import { BASEMAPS } from './src/mapStyles.js';
 import { initCompareMode } from './src/compareMode.js';
 import { initFaultOverlay, setFaultsVisible } from './src/faultOverlay.js';
-const CFM_TRACE_URL_2D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
+// pinned to v0.1 review snapshot; do not retarget to main
+const CFM_TRACE_URL_2D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/9fa84b8cc9dea3e521429e0ac7aeb25449a29cb4/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 
 /* Show/hide loading indicator */
