@@ -66,3 +66,22 @@ dataset_analysis.ipynb
 eq-infra/.venv/
 eq-infra/cdk.out/
 eq-infra/eq_infra/__pycache__/
+
+# ====================
+# Security assessments – NEVER commit to public repo
+# Threat models and assessment drafts belong in a private store, not here.
+# (Sanitized public summaries like security/SECURITY.md are still allowed.)
+# ====================
+*Security_Assessment*.docx
+*Security_Assessment*.pdf
+security/*.docx
+security/*.pdf
+cyberinfrastructure_security_assessment/
+
+# ====================
+# Reference data drops from collaborators (local only)
+# Keep large geojson handoffs out of the repo; load via pinned upstream URLs.
+# ====================
+CFM v0.1 trace and mesh files for CRESCENT earthquake viewer/
+*.geojson.bak
+cfm_test.geojson
