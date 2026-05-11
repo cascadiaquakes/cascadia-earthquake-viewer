@@ -67,8 +67,8 @@ function applyVerticalExaggerationToDataSource(dataSource) {
 
 
 // pinned to v0.1 review snapshot; do not retarget to main
-const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/9fa84b8cc9dea3e521429e0ac7aeb25449a29cb4/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';   // full mesh; no decimated variant for v0.1
-const CFM_TRACE_URL_3D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/9fa84b8cc9dea3e521429e0ac7aeb25449a29cb4/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
+const CFM_SURFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/stable/crescent_cfm_files/crescent_cfm_crustal_3d.geojson';   // full mesh; no decimated variant for v0.1
+const CFM_TRACE_URL_3D = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/stable/crescent_cfm_files/crescent_cfm_crustal_traces.geojson';
 
 // 2D Surface (Subduction interface) URL
 const SUBDUCTION_INTERFACE_URL = 'https://raw.githubusercontent.com/cascadiaquakes/CRESCENT-CFM/main/crescent_cfm_files/cascadia_subduction_interface_temp.geojson';
