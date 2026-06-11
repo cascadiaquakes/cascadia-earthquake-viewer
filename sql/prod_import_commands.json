@@ -1,0 +1,23 @@
+{
+  "commands": [
+    "set -euo pipefail",
+    "cd /tmp",
+    "rm -f catalog_journeau.csv 01_add_journeau_blanco.sql",
+    "echo '=== Downloading from S3 ==='",
+    "aws s3 cp s3://crescent-react-hosting/temp/journeau_blanco_import/catalog_journeau.csv ./catalog_journeau.csv",
+    "aws s3 cp s3://crescent-react-hosting/temp/journeau_blanco_import/01_add_journeau_blanco.sql ./01_add_journeau_blanco.sql",
+    "ls -la catalog_journeau.csv 01_add_journeau_blanco.sql",
+    "echo '=== Copying CSV into postgis-eq container ==='",
+    "docker cp ./catalog_journeau.csv postgis-eq:/tmp/catalog_journeau.csv",
+    "docker exec postgis-eq ls -la /tmp/catalog_journeau.csv",
+    "echo '=== Running migration ==='",
+    "docker exec -i postgis-eq psql -U postgres -d gis < ./01_add_journeau_blanco.sql",
+    "echo '=== Post-import verification ==='",
+    "docker exec postgis-eq psql -U postgres -d gis -c \"SELECT catalog_id, catalog_name, num_events, (SELECT COUNT(*) FROM earthquake.events WHERE catalog_id = c.catalog_id) AS actual_loaded FROM earthquake.catalogs c WHERE catalog_id = 17\"",
+    "docker exec postgis-eq psql -U postgres -d gis -c \"SELECT catalog_id, catalog_name FROM earthquake.catalogs ORDER BY catalog_id\"",
+    "echo '=== Cleanup ==='",
+    "rm -f /tmp/catalog_journeau.csv /tmp/01_add_journeau_blanco.sql",
+    "docker exec postgis-eq rm -f /tmp/catalog_journeau.csv",
+    "echo '=== Done ==='"
+  ]
+}
