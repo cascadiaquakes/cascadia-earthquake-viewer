@@ -44,6 +44,13 @@ backend/scripts/
 # ====================
 # Database dumps – NEVER commit
 # ====================
+*.dump
+*.backup
+
+# Raw catalog CSVs at repo root. Source of truth lives in the DB / S3 dump
+# plus the contribution issue thread; no need to bloat git history with
+# the raw input files.
+/catalog_*.csv
 backend/*.dump
 backend/*.sql
 backend/*.backup

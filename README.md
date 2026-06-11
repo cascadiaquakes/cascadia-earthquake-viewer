@@ -25,7 +25,7 @@ The JupyterBook contains:
 
 ##  Catalogs Available in the Viewer
 
-The viewer currently supports **10 curated earthquake catalogs**, totaling **~1.9 million events**, including:
+The viewer currently supports **11 curated earthquake catalogs**, totaling **~1.9 million events**, including:
 
 1. **Bostock et al. 2015 — LFEs (Southern Vancouver Island)** - 269K events
 2. **Plourde et al. 2015 — Southern Cascadia** - 6K events
@@ -37,6 +37,7 @@ The viewer currently supports **10 curated earthquake catalogs**, totaling **~1.
 8. **Littel et al. 2023 — Queen Charlotte Triple Junction** - 18K events
 9. **Shelly et al. 2025 — Southern Cascadia LFEs** - 61K events
 10. **Hirao et al. 2025 — Mount St. Helens** - 31K events
+11. **Journeau et al. 2026 — Blanco Transform Fault** - 30K events
 
 All catalogs include peer-reviewed publication DOI links accessible via the web interface.
 
