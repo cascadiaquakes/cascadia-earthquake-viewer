@@ -99,9 +99,9 @@ sudo su - ec2-user
 cd ~/cascadia-earthquake-viewer
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 818214664804.dkr.ecr.us-west-2.amazonaws.com
 docker-compose -f docker-compose.prod.yml up -d
-aws s3 cp s3://crescent-react-hosting/temp/gis_FINAL_jan15_2026.dump /tmp/
-docker cp /tmp/gis_FINAL_jan15_2026.dump postgis-eq:/tmp/
-docker exec postgis-eq pg_restore -U postgres -d gis --clean --no-owner /tmp/gis_FINAL_jan15_2026.dump
+aws s3 cp s3://crescent-react-hosting/temp/gis_FINAL_jun11_2026.dump /tmp/
+docker cp /tmp/gis_FINAL_jun11_2026.dump postgis-eq:/tmp/
+docker exec postgis-eq pg_restore -U postgres -d gis --clean --no-owner /tmp/gis_FINAL_jun11_2026.dump
 docker-compose -f docker-compose.prod.yml restart api-eq martin-eq
 ```
 
