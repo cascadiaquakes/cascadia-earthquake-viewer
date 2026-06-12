@@ -45,7 +45,15 @@ class EarthquakeStack(Stack):
             "API server"
         )
 
-        # IAM role for EC2 instance with SSM and ECR access
+        # IAM role for EC2 instance with SSM, ECR, and S3 access.
+        #
+        # S3ReadOnlyAccess was attached manually to this role before this
+        # commit; declaring it here so a future cdk deploy doesn't strip it.
+        # The inline S3WriteDumpsToTemp policy lets the cron job that pushes
+        # nightly pg_dump output up to s3://crescent-react-hosting/temp/
+        # actually call PutObject. Scope is intentionally tight: writes are
+        # confined to the temp/ prefix, deletes used for retention rotation
+        # are also bound there.
         backend_role = iam.Role(
             self,
             "BackendRole",
@@ -57,7 +65,27 @@ class EarthquakeStack(Stack):
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "AmazonEC2ContainerRegistryReadOnly"
                 ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonS3ReadOnlyAccess"
+                ),
             ],
+            inline_policies={
+                "S3WriteDumpsToTemp": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "s3:PutObject",
+                                "s3:AbortMultipartUpload",
+                                "s3:DeleteObject",
+                            ],
+                            resources=[
+                                "arn:aws:s3:::crescent-react-hosting/temp/*",
+                            ],
+                        ),
+                    ],
+                ),
+            },
         )
 
         # User data script to bootstrap EC2 instance
@@ -85,7 +113,23 @@ class EarthquakeStack(Stack):
             "chown -R ec2-user:ec2-user cascadia-earthquake-viewer",
             "cd cascadia-earthquake-viewer",
 
-            # Start Docker Compose services using production compose
+            # Authenticate to ECR so docker-compose can pull api-eq:latest. Without
+            # this step, "docker-compose up" fails with "no basic auth credentials"
+            # for 818214664804.dkr.ecr.us-west-2.amazonaws.com/eq-api:latest, and
+            # none of the containers start. Caught the hard way on 2026-06-12 when
+            # an instance replacement left prod down until the login was run
+            # manually via SSM.
+            "sudo -u ec2-user bash -c 'aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 818214664804.dkr.ecr.us-west-2.amazonaws.com'",
+
+            # Start Docker Compose services using production compose.
+            #
+            # NOTE on database state: the postgis-eq container starts with an
+            # empty database. On a fresh instance the operator must restore
+            # from the latest pg_dump in s3://crescent-react-hosting/temp/
+            # (see CICD_SETUP.md "Database Recovery"). We deliberately do NOT
+            # auto-restore from user-data: a CDK deploy that triggers instance
+            # replacement should not silently wipe any in-flight catalog
+            # additions that haven't been dumped yet.
             "sudo -u ec2-user /usr/local/bin/docker-compose -f docker-compose.prod.yml up -d",
 
             # Log deployment completion
