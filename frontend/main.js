@@ -614,6 +614,16 @@ map.on('load', async () => {
     catalogsData = await loadCatalogs();
     window.catalogsData = catalogsData;
 
+    // If the user was just on the 3D view, restore whichever catalog they
+    // had picked there so switching views does not lose selection.
+    try {
+        const saved = sessionStorage.getItem('eqSelectedCatalog');
+        const sel = document.getElementById('catalog-select');
+        if (saved && sel && Array.from(sel.options).some(o => o.value === saved)) {
+            sel.value = saved;
+        }
+    } catch (_) { /* storage unavailable */ }
+
     const initialCatalogId = Number(document.getElementById('catalog-select').value || 2);
     updateCatalogMetadata(initialCatalogId);
 
