@@ -464,6 +464,13 @@
 
     <script>
     function cleanup2D() {
+        // Persist the currently-selected catalog so the 3D view can pick it
+        // up on load instead of resetting to the default.
+        try {
+            const sel = document.getElementById('catalog-select');
+            if (sel && sel.value) sessionStorage.setItem('eqSelectedCatalog', sel.value);
+        } catch (_) { /* storage unavailable */ }
+
         // Destroy MapLibre map before switching to 3D
         if (window.map) {
             window.map.remove();
