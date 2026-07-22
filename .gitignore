@@ -13,6 +13,9 @@ dist/
 frontend/.env*
 backend/.env*
 config.yaml
+# Martin tile server config IS source-controlled (no secrets, the docker-compose
+# bind-mount needs the file to exist or Docker creates an empty directory).
+!backend/config.yaml
 
 # ====================
 # OS junk

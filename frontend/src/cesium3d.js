@@ -1349,7 +1349,17 @@ initSpatialInputs3D();
 (async () => {
     try {
         await loadDefaultLayers();
-        await loadEarthquakes({ catalog: 2 });
+        // Honor the catalog the user had picked before switching views.
+        let initialCatalog = 2;
+        try {
+            const saved = sessionStorage.getItem('eqSelectedCatalog');
+            const sel = document.getElementById('catalog-select-3d');
+            if (saved && sel && Array.from(sel.options).some(o => o.value === saved)) {
+                sel.value = saved;
+                initialCatalog = Number(saved);
+            }
+        } catch (_) { /* storage unavailable */ }
+        await loadEarthquakes({ catalog: initialCatalog });
         console.log('🌍 Initial data loaded');
     } catch (err) {
         console.error('❌ Initial data load failed:', err);
