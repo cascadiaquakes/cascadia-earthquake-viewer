@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "The Cascadia Region Earthquake Science Center (CRESCENT) Earthquake Catalog Repository and Viewer"
+version: "1.0.0"
+doi: 10.5281/zenodo.18636678
+date-released: 2026-02-13
+license: BSD-3-Clause
+repository-code: "https://github.com/cascadiaquakes/cascadia-earthquake-viewer"
+url: "https://eqcat.cascadiaquakes.org"
+authors:
+  - family-names: Marfo
+    given-names: William
+    orcid: "https://orcid.org/0009-0003-0631-2750"
+  - family-names: Thomas
+    given-names: Amanda
+    orcid: "https://orcid.org/0000-0001-6997-3140"
+  - family-names: Bachelot
+    given-names: Loïc
+    orcid: "https://orcid.org/0000-0003-0711-8581"
+  - family-names: Journeau
+    given-names: Cyril
+  - family-names: Ni
+    given-names: Yiyu
+  - family-names: Hirao
+    given-names: Brenton
+  - family-names: Trugman
+    given-names: Daniel
