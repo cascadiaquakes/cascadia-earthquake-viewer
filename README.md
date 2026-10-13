@@ -1,116 +1,109 @@
 # Cascadia Earthquake Catalog Viewer
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18636678.svg)](https://doi.org/10.5281/zenodo.18636678)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE)
+
 Interactive, web-based visualization tool for exploring curated earthquake catalogs across the Cascadia region.
 
-This viewer is part of the **CRESCENT Earthquake Catalog ecosystem** and is designed to provide fast, interactive access to multiple published and curated seismic catalogs for research, exploration, and outreach.
+**Live viewer:** https://eqcat.cascadiaquakes.org
+
+This viewer is part of the **CRESCENT Earthquake Catalog ecosystem** and provides fast, interactive access to multiple published and curated seismic catalogs for research, exploration, and outreach.
 
 ---
 
-## 📚 Official Catalog Documentation (JupyterBook)
+## Documentation
 
-**Note that authoritative documentation for all earthquake catalogs lives here:**
+Authoritative documentation for all earthquake catalogs lives in the CRESCENT Earthquake Catalog Jupyter Book:
 
-🔗 **https://cascadiaquakes.github.io/earthquake_catalog_repository/**
+**https://cascadiaquakes.github.io/earthquake_catalog_repository/**
 
-The JupyterBook contains:
-- Detailed catalog descriptions and provenance  
-- Detection, association, and location methodologies  
-- Velocity models and processing workflows  
-- Reproducible notebooks and figures  
-- Guidance for extending and updating catalogs  
+The book covers:
+- Detailed catalog descriptions and provenance
+- Detection, association, and location methodologies
+- Velocity models and processing workflows
+- Reproducible notebooks and figures
+- Guidance for extending and updating catalogs
 
-> **If you are looking for scientific details or catalog construction methods, please start with the JupyterBook above.**
-
----
-
-##  Catalogs Available in the Viewer
-
-The viewer currently supports **11 curated earthquake catalogs**, totaling **~1.9 million events**, including:
-
-1. **Bostock et al. 2015 — LFEs (Southern Vancouver Island)** - 269K events
-2. **Plourde et al. 2015 — Southern Cascadia** - 6K events
-3. **Stone et al. 2018 — Offshore Cascadia** - 237 events
-4. **Wech 2021 — Cascadia Tremor** - 740K events
-5. **Merrill et al. 2022 — Nootka Fault Zone** - 92K events
-6. **Ducellier & Creager 2022 — Southern Cascadia** - 478K events
-7. **Morton et al. 2023 — Cascadia Subduction Zone** - 5K events
-8. **Littel et al. 2023 — Queen Charlotte Triple Junction** - 18K events
-9. **Shelly et al. 2025 — Southern Cascadia LFEs** - 61K events
-10. **Hirao et al. 2025 — Mount St. Helens** - 31K events
-11. **Journeau et al. 2026 — Blanco Transform Fault** - 30K events
-
-All catalogs include peer-reviewed publication DOI links accessible via the web interface.
+> If you are looking for scientific details or catalog construction methods, start with the Jupyter Book above.
 
 ---
 
 ## Features
 
-### 🗺️ Dual Visualization Modes
-
-**2D Interactive Map**
-- Intelligent clustering with blue circles showing event counts (zoom 0-14)
+### 2D Interactive Map
+- Clustering with circles showing event counts (zoom 0-14)
 - Individual earthquake points at high zoom (14+) with depth-based coloring
 - Satellite imagery basemap (Esri World Imagery)
 - Smooth zoom transitions and cluster expansion on click
 
-**3D Globe Visualization (Cesium)**
-- Real-time 3D rendering with Cesium engine
+### 3D Globe (Cesium)
+- Real-time 3D rendering with Cesium
 - Terrain modes: Satellite / Dark
 - Political boundaries overlay (US states, Canadian provinces)
 - Draggable info boxes with detailed earthquake data
 - Cascadia study region boundary box with corner labels
 
-### 📊 Data Analysis & Visualization
+### Depth-Based Color Coding
+- Yellow: Shallow (0-20 km)
+- Orange: Medium (20-40 km)
+- Red: Deep (40+ km)
 
-**Depth-Based Color Coding**
-- 🟡 Yellow: Shallow (0-20 km)
-- 🟠 Orange: Medium (20-40 km)
-- 🔴 Red: Deep (40+ km)
+### Filters
+- **Depth range**: slider control (0-100 km)
+- **Magnitude range**: slider control (0-10)
+- **Date range**: calendar picker with validation (prevents invalid ranges)
+- **Spatial bounds**: lat/lon bounding box for geographic filtering
+- **Server-side**: all filters are processed by the API for performance
 
-**Advanced Filters**
-- **Depth range**: Slider control (0-100 km)
-- **Magnitude range**: Slider control (0-10)
-- **Date range**: Calendar picker with validation (prevents invalid ranges)
-- **Spatial bounds**: Lat/lon bounding box for geographic filtering
-- **API-powered**: All filters processed server-side for optimal performance
-
-**Interactive Features**
+### Interactive Features
 - Clustering for large datasets (auto-decluster on zoom)
 - Click events to view detailed metadata
 - Real-time catalog switching (279K events loaded in seconds)
 
+### Analytics and Compare Mode
 
-## Analytics & Compare Mode 
-### Sampling Strategy
-- **Random sampling** via `ORDER BY RANDOM()` (~900ms for 10k events)
+**Sampling strategy**
+- Random sampling via `ORDER BY RANDOM()` (~900 ms for 10k events)
 - Avoids temporal bias (no "newest-only" skew)
 - Overlay catalogs: 10k event cap
 - Primary catalog: 50k event cap
 
-### Normalization
+**Normalization**
 - Histograms show **% of catalog**, not raw counts
 - Enables fair comparison between catalogs of different sizes
 - Y-axis: "% of Catalog" when comparing
 
-### What We Show
-✅ Distribution shapes (magnitude, depth, time)  
-✅ Temporal coverage differences  
-✅ Structural patterns  
+**What we show:** distribution shapes (magnitude, depth, time), temporal coverage differences, structural patterns.
 
-### What We Don't Claim
-❌ Absolute event rates  
-❌ Statistical significance  
-❌ Completeness analysis  
-❌ Catalog quality comparison  
+**What we don't claim:** absolute event rates, statistical significance, completeness analysis, catalog quality comparison.
 
-
-
-
-**Data Export**
+### Data Export
 - GeoJSON format (preserves all metadata and geometry)
 - CSV format (tabular data with all attributes)
 - Exports filtered earthquakes based on current filters
 - Timestamped filenames for version control
+
+---
+
+## Data
+
+The viewer currently supports **11 curated earthquake catalogs**, totaling **~1.9 million events**:
+
+1. **Bostock et al. 2015**: LFEs (Southern Vancouver Island), 269K events
+2. **Plourde et al. 2015**: Southern Cascadia, 6K events
+3. **Stone et al. 2018**: Offshore Cascadia, 237 events
+4. **Wech 2021**: Cascadia Tremor, 740K events
+5. **Merrill et al. 2022**: Nootka Fault Zone, 92K events
+6. **Ducellier & Creager 2022**: Southern Cascadia, 478K events
+7. **Morton et al. 2023**: Cascadia Subduction Zone, 5K events
+8. **Littel et al. 2023**: Queen Charlotte Triple Junction, 18K events
+9. **Shelly et al. 2025**: Southern Cascadia LFEs, 61K events
+10. **Hirao et al. 2025**: Mount St. Helens, 31K events
+11. **Journeau et al. 2026**: Blanco Transform Fault, 30K events
+
+All catalogs include peer-reviewed publication DOI links accessible in the viewer.
+
+---
 
 ## Technology Stack
 
@@ -126,7 +119,7 @@ All catalogs include peer-reviewed publication DOI links accessible via the web 
 
 ---
 
-## Quick Start
+## Running Locally
 
 ### Prerequisites
 
@@ -136,9 +129,9 @@ All catalogs include peer-reviewed publication DOI links accessible via the web 
 
 ### Installation
 
-**1. Clone repository**
+**1. Clone the repository**
 ```bash
-git clone https://github.com/billmj/cascadia-earthquake-viewer.git
+git clone https://github.com/cascadiaquakes/cascadia-earthquake-viewer.git
 cd cascadia-earthquake-viewer
 ```
 
@@ -148,27 +141,83 @@ cd backend
 docker-compose up -d
 ```
 
-**3. Start API server**
+**3. Start the API server**
 ```bash
 cd backend
 npm install
 npm start
 ```
 
-**4. Start frontend**
+**4. Start the frontend**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-**5. Open application**
+**5. Open the application**
 - 2D Map: http://localhost:5173
 - 3D Globe: http://localhost:5173/viewer3d.html
 - API: http://localhost:3002
 
-**View the live application here:**
- https://d1a5q8bsxutjyg.cloudfront.net/index.html
+### Environment Variables
+
+**Frontend (`.env`):**
+```env
+VITE_CESIUM_TOKEN=your_cesium_token_here
+```
+
+**Backend (`.env`):**
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=gis
+DB_USER=postgres
+DB_PASSWORD=postgres
+PORT=3002
+```
+
+### Development Commands
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev          # Start dev server with hot reload
+npm run build        # Production build
+npm run preview      # Preview production build
+```
+
+**Backend:**
+```bash
+cd backend
+
+# Docker services
+docker-compose up -d           # Start PostgreSQL
+docker-compose down            # Stop services
+docker-compose logs -f         # View logs
+
+# API server
+npm start                      # Start Express server
+npm run dev                    # Start with nodemon (auto-restart)
+
+# Database access
+docker exec -it postgis-eq psql -U postgres -d gis
+```
+
+### Data Import
+
+To import earthquake data:
+
+```bash
+cd backend
+node scripts/import-earthquakes.js
+```
+
+Expected data format (CSV):
+```
+evid,latitude,longitude,depth,magnitude,origin_time,region,nsta,gap,max_err
+20181120205341,45.123,-123.456,25.3,2.1,2018-11-20T20:53:41,W1,12,85.5,2.1
+```
 
 ---
 
@@ -221,7 +270,7 @@ cascadia-earthquake-viewer/
 │
 ├── docker-compose.yml          # Root orchestration
 └── README.md                   # Project documentation
-
+```
 
 ---
 
@@ -286,101 +335,21 @@ curl "http://localhost:3002/api/earthquakes?minDepth=20&maxDepth=40&regions=W1,W
 | max_err | FLOAT | Location error (km) |
 | geom | GEOMETRY | PostGIS point geometry |
 
-**Spatial Index:** GIST index on `geom` for fast spatial queries
-
----
-
-## Development
-
-### Frontend Development
-```bash
-cd frontend
-npm run dev          # Start dev server with hot reload
-npm run build        # Production build
-npm run preview      # Preview production build
-```
-
-### Backend Development
-```bash
-cd backend
-
-# Docker services
-docker-compose up -d           # Start PostgreSQL
-docker-compose down            # Stop services
-docker-compose logs -f         # View logs
-
-# API server
-npm start                      # Start Express server
-npm run dev                    # Start with nodemon (auto-restart)
-
-# Database access
-docker exec -it postgis-eq psql -U postgres -d gis
-```
-
-### Environment Variables
-
-**Frontend (`.env`):**
-```env
-VITE_CESIUM_TOKEN=your_cesium_token_here
-```
-
-**Backend (`.env`):**
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=gis
-DB_USER=postgres
-DB_PASSWORD=postgres
-PORT=3002
-```
-
----
-
-## Data Import
-
-To import earthquake data:
-
-```bash
-cd backend
-node scripts/import-earthquakes.js
-```
-
-Expected data format (CSV):
-```
-evid,latitude,longitude,depth,magnitude,origin_time,region,nsta,gap,max_err
-20181120205341,45.123,-123.456,25.3,2.1,2018-11-20T20:53:41,W1,12,85.5,2.1
-```
+**Spatial index:** GIST index on `geom` for fast spatial queries.
 
 ---
 
 ## Deployment
 
-### Production Build
+Pull requests run CI (frontend build, backend Docker image, CDK synth). Production deploys of the frontend, backend and infrastructure are manual GitHub Actions workflows with a confirmation gate, authenticated to AWS through OIDC (no stored keys). The frontend is served from S3 + CloudFront and the API and tile server run on EC2.
 
-**Frontend:**
-```bash
-cd frontend
-npm run build
-# Output: frontend/dist/
-```
-
-Deploy `dist/` folder to:
-- AWS S3 + CloudFront
-
-**Backend:**
-```bash
-cd backend
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-Deploy Express API to:
-- AWS EC2 / ECS
+See [CICD_SETUP.md](CICD_SETUP.md) for the full pipeline, environments and database recovery.
 
 ---
 
 ## Troubleshooting
 
-### Backend Issues
+### Backend
 
 **PostgreSQL won't start:**
 ```bash
@@ -400,25 +369,24 @@ npm start
 
 **No earthquake data:**
 ```bash
-# Import data
 cd backend
 node scripts/import-earthquakes.js
 ```
 
-### Frontend Issues
+### Frontend
 
 **Map not loading:**
 - Hard refresh: `Ctrl + Shift + R`
-- Check browser console (F12) for errors
-- Verify backend is running: `curl http://localhost:3002/api/earthquakes?limit=1`
+- Check the browser console (F12) for errors
+- Verify the backend is running: `curl http://localhost:3002/api/earthquakes?limit=1`
 
 **3D view blank:**
-- Verify Cesium token in `.env` file
-- Check browser supports WebGL: https://get.webgl.org/
+- Verify the Cesium token in the `.env` file
+- Check that your browser supports WebGL: https://get.webgl.org/
 
 **Clusters not showing:**
 - Zoom out (clusters appear at zoom 0-14)
-- Check if data loaded: Open browser console
+- Check that data loaded in the browser console
 
 ---
 
@@ -432,44 +400,41 @@ node scripts/import-earthquakes.js
 - Cesium request render mode for better 3D performance
 
 **Recommended limits:**
-- 2D: No limit (clustering handles it)
+- 2D: no limit (clustering handles it)
 - 3D: 10,000 points (default, can increase to 50,000 on powerful machines)
 
 ---
 
-## Credits
+## How to Cite
 
-**Developed by:** CRESCENT Dev Team (William, Loïc, Amanda) 
+If you use the viewer or its code, please cite:
 
-**Funded by:** U.S. National Science Foundation  
-**Earthquake Data:** Pacific Northwest Seismic Network  
-**Basemap:** Esri World Imagery  
-**3D Engine:** Cesium  
+> Marfo, W., Thomas, A., Bachelot, L., Journeau, C., Ni, Y., Hirao, B., & Trugman, D. (2026). *The Cascadia Region Earthquake Science Center (CRESCENT) Earthquake Catalog Repository and Viewer* (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.18636678
 
----
-
-
----
-
-## Acknowledgments
-
-This project is supported by the National Science Foundation through the Cascadia Region Earthquake Science Center (CRESCENT). We thank the many researchers who have contributed earthquake catalogs and methodological advances that make this repository possible.  
+Please also cite the original publication for each catalog you use. Their DOIs are linked in the viewer and in the [Jupyter Book](https://cascadiaquakes.github.io/earthquake_catalog_repository/).
 
 ---
 
 ## License
 
-Copyright © 2025 Cascadia Region Earthquake Science Center (CRESCENT). All rights reserved.
+This project is licensed under the BSD 3-Clause License. See [LICENSE](LICENSE).
 
 ---
 
-## Support
+## Contacts
 
-For technical questions or issues:
-- Open an issue on GitHub
-- Contact: crescent cyber team
+- **William Marfo**, University of California, Davis: [wmarfo@ucdavis.edu](mailto:wmarfo@ucdavis.edu)
+- **Amanda M. Thomas**, University of California, Davis: [amthom@ucdavis.edu](mailto:amthom@ucdavis.edu)
+- **Loïc Bachelot**, University of Oregon: [lbachelo@uoregon.edu](mailto:lbachelo@uoregon.edu)
+
+For bugs or feature requests, please [open an issue](https://github.com/cascadiaquakes/cascadia-earthquake-viewer/issues).
 
 ---
 
-**Version:** v1.0 (demo)  
-**Last Updated:** December 2025
+## Acknowledgments
+
+This project is supported by the National Science Foundation through the Cascadia Region Earthquake Science Center (CRESCENT), Cooperative Agreement EAR-2225286. We thank the many researchers who contributed the earthquake catalogs and methodological advances that make this viewer possible.
+
+- **Earthquake data:** Pacific Northwest Seismic Network and the catalog authors listed above
+- **Basemap:** Esri World Imagery
+- **3D engine:** CesiumJS
